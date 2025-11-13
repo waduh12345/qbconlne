@@ -165,7 +165,7 @@ function HeaderUser({
       <DropdownMenuTrigger asChild>
         <button className="group inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-2.5 py-1.5 text-sm text-white shadow-sm backdrop-blur transition hover:bg-white/15 hover:shadow-md">
           <Avatar className="h-8 w-8 rounded-xl ring-1 ring-white/30">
-            <AvatarImage src={avatar || "/logo-stikes.jpg"} alt={name} />
+            <AvatarImage src={avatar || "/icon-qubic.jpg"} alt={name} />
             <AvatarFallback className="rounded-xl">
               {name?.[0]?.toUpperCase() ?? "U"}
             </AvatarFallback>
@@ -587,7 +587,7 @@ export function AppShell({
   const uiUser = {
     name: sUser?.name ?? "Student",
     email: sUser?.email ?? "student@example.com",
-    avatar: sUser?.avatar ?? "/logo-stikes.jpg",
+    avatar: sUser?.avatar ?? "/icon-qubic.jpg",
   };
 
   return (
