@@ -189,7 +189,7 @@ export default function LoginForm() {
             {mode === "register" && (
               <>
                 <div className="grid grid-cols-1 gap-4">
-                  <div>
+                  <div className="space-y-1">
                     <Label htmlFor="name">Nama</Label>
                     <Input
                       id="name"
@@ -202,8 +202,8 @@ export default function LoginForm() {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="school">Sekolah (ketik manual)</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="school">Sekolah</Label>
                     <Input
                       id="school"
                       type="text"
@@ -222,7 +222,7 @@ export default function LoginForm() {
               </>
             )}
 
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -235,7 +235,7 @@ export default function LoginForm() {
               />
             </div>
 
-            <div>
+            <div className="space-y-1">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password">Password</Label>
                 {mode === "login" ? (
@@ -261,7 +261,7 @@ export default function LoginForm() {
             </div>
 
             {mode === "register" && (
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="password_confirmation">
                   Konfirmasi Password
                 </Label>
