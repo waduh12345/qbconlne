@@ -393,7 +393,7 @@ export default function StudentCardModal({
   const pwd = student?.password ?? "—";
 
   // <div class="student-card-kv">
-  //   <div class="student-card-k">NISM / NIS</div>
+  //   <div class="student-card-k">NISN / NIS</div>
   //   <div class="student-card-v">${nim}</div>
   // </div>
   const buildCardInnerHTML = () => `

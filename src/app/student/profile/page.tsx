@@ -166,7 +166,7 @@ function StudentCard({ me }: { me: Me }) {
           <div class="col">
             <div class="divider"></div>
             <div class="kv"><div class="k">Nama</div><div class="v">${name}</div></div>
-            <div class="kv"><div class="k">NISM</div><div class="v">${nim}</div></div>
+            <div class="kv"><div class="k">NISN</div><div class="v">${nim}</div></div>
             <div class="kv"><div class="k">Password</div><div class="v">${pwd}</div></div>
             <div class="kv"><div class="k">Prodi</div><div class="v">${prodi}</div></div>
             <div class="kv"><div class="k">Kelas</div><div class="v">${kelas}</div></div>
@@ -235,7 +235,7 @@ function StudentCard({ me }: { me: Me }) {
                 <div className="my-2 h-px w-full bg-border" />
                 {[
                   ["Nama", name],
-                  ["NISM", nim],
+                  ["NISN", nim],
                   ["Password", String(pwd)],
                   ["Sekolah", String(prodi)],
                   ["Kelas", String(kelas)],
@@ -377,7 +377,7 @@ export default function ProfilePage() {
                   <Row label="Status">
                     <Chip>{me.student.status ? "Aktif" : "Nonaktif"}</Chip>
                   </Row>
-                  <Row label="NISM">{me.student.nim ?? "—"}</Row>
+                  <Row label="NISN">{me.student.nim ?? "—"}</Row>
                   <Row label="Sekolah">
                     {me.student.school?.name ?? me.student.school_name ?? "—"}
                   </Row>

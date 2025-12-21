@@ -79,7 +79,7 @@ function buildCardInnerHTML(student: StudentLite): string {
                 <div class="student-card-v">${name}</div>
               </div>
               <div class="student-card-kv">
-                <div class="student-card-k">NISM / NIS</div>
+                <div class="student-card-k">NISN / NIS</div>
                 <div class="student-card-v">${nim}</div>
               </div>
               <div class="student-card-kv">
