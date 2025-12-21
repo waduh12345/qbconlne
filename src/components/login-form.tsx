@@ -264,18 +264,20 @@ export default function LoginForm() {
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="phone">No. Whatsapp</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="081234567890"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700 text-black dark:text-white"
-                required
-              />
-            </div>
+            {mode === "register" && (
+              <div className="space-y-1">
+                <Label htmlFor="phone">No. Whatsapp</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="081234567890"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700 text-black dark:text-white"
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-1">
               <div className="flex justify-between items-center">
