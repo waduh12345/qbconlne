@@ -104,7 +104,7 @@ export default function TryoutListPage() {
         showConfirmButton: false,
       });
 
-      router.push(`/tryout/session/${res.id}/start`);
+      router.push(`/student/tryout/session/${res.id}/start`);
     } catch (e) {
       Swal.close();
       await Swal.fire({
@@ -119,7 +119,7 @@ export default function TryoutListPage() {
   }
 
   function handleContinue(participantTestId: number) {
-    router.push(`/tryout/session/${participantTestId}/start`);
+    router.push(`/student/tryout/session/${participantTestId}/start`);
   }
 
   return (

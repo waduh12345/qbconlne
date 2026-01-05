@@ -43,16 +43,20 @@ export default function LoginForm() {
     useRegisterMutation();
 
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
-    const { data: schoolListResp, isFetching: loadingSchools } =
-      useGetSchoolListPublicQuery(
-        { page: 1, paginate: 30, search: schoolSearch },
-        { refetchOnMountOrArgChange: true }
-      );
-    const schools: School[] = schoolListResp?.data ?? [];
+  const { data: schoolListResp, isFetching: loadingSchools } =
+    useGetSchoolListPublicQuery(
+      {
+        page: 1,
+        paginate: 30,
+        search: schoolSearch,
+        order: "asc",
+        orderBy: "schools.name",
+      },
+      { refetchOnMountOrArgChange: true }
+    );
+  const schools: School[] = schoolListResp?.data ?? [];
 
-  const [schoolId, setSchoolId] = React.useState<number | null>(
-    null
-  );
+  const [schoolId, setSchoolId] = React.useState<number | null>(null);
   // resolved school = manual only (since fetching is disabled)
   const resolvedSchoolName = useMemo(
     () => manualSchoolName.trim(),
@@ -234,7 +238,9 @@ export default function LoginForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="school">Jika tidak terdaftar isi sekolah dibawah ini</Label>
+                    <Label htmlFor="school">
+                      Jika tidak terdaftar isi sekolah dibawah ini
+                    </Label>
                     <Input
                       id="school"
                       type="text"

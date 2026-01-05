@@ -15,6 +15,7 @@ import { useGetUsersListQuery } from "@/services/users-management.service";
 import { useGetMeQuery } from "@/services/auth.service";
 import type { Test } from "@/types/tryout/test";
 import type { Users } from "@/types/user";
+import type { School } from "@/types/master/school"; // Pastikan import ini ada
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,12 +36,11 @@ import {
   RefreshCw,
   Trophy,
   Users as UsersIcon,
-  BarChart3, // 🔹 icon Penilaian IRT
+  BarChart3,
 } from "lucide-react";
 import Pager from "@/components/ui/tryout-pagination";
 import ActionIcon from "@/components/ui/action-icon";
 import { SiteHeader } from "@/components/site-header";
-// import { displayDate } from "@/lib/format-utils";
 import TryoutForm, {
   FormState,
   TimerType,
@@ -50,12 +50,12 @@ import TryoutForm, {
 import { Combobox } from "@/components/ui/combo-box";
 import TryoutMonitoringDialog from "@/components/modal/tryout/monitoring-student";
 
-type School = { id: number; name: string; email?: string };
-
+// Interface untuk baris data tabel, menyesuaikan response API
 type TestRow = Test & {
   user_id?: number | null;
   pengawas_name?: string | null;
-  school_id?: number | number[];
+  // API mengembalikan array object schools
+  schools?: School[];
 };
 
 type TestPayload = {
@@ -134,7 +134,7 @@ export default function TryoutPage() {
   const isPengawas = roles.some((r) => r.name === "pengawas");
   const myId = me?.id ?? 0;
 
-  // 🔹 ambil data sekolah (untuk combobox)
+  // 🔹 ambil data sekolah (untuk combobox filter)
   const {
     data: schoolResp,
     isLoading: loadingSchools,
@@ -146,7 +146,7 @@ export default function TryoutPage() {
 
   const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
-  // 🔹 query utama list tryout (sekarang include school_id)
+  // 🔹 query utama list tryout
   const baseQuery = {
     page,
     paginate,
@@ -189,32 +189,34 @@ export default function TryoutPage() {
   const [editing, setEditing] = useState<TestRow | null>(null);
   const [monitoringTest, setMonitoringTest] = useState<TestRow | null>(null);
 
-  const toForm = (t: TestRow): FormState => ({
-    school_id: Array.isArray(t.school_id)
-      ? t.school_id
-      : t.school_id !== null && t.school_id !== undefined
-      ? [t.school_id]
-      : [],
-    title: t.title,
-    sub_title: t.sub_title ?? "",
-    slug: t.slug ?? "",
-    description: t.description ?? "",
-    total_time: t.total_time,
-    total_questions: t.total_questions,
-    pass_grade: t.pass_grade,
-    shuffle_questions: t.shuffle_questions,
-    assessment_type: t.assessment_type as AssessmentType,
-    timer_type: t.timer_type as TimerType,
-    score_type: (t.score_type as ScoreType) ?? "default",
-    start_date: dateOnly(t.start_date),
-    end_date: dateOnly(t.end_date),
-    code: t.code ?? "",
-    max_attempts: t.max_attempts ?? "",
-    is_graded: t.is_graded,
-    is_explanation_released: t.is_explanation_released,
-    user_id: t.user_id ?? 0,
-    status: t.status ? 1 : 0,
-  });
+  // ✅ PERBAIKAN: Mapping data schools dari API ke school_id (array of number)
+  const toForm = (t: TestRow): FormState => {
+    // Ambil ID dari array schools jika ada
+    const schoolIds = t.schools?.map((s) => s.id) ?? [];
+
+    return {
+      school_id: schoolIds,
+      title: t.title,
+      sub_title: t.sub_title ?? "",
+      slug: t.slug ?? "",
+      description: t.description ?? "",
+      total_time: t.total_time,
+      total_questions: t.total_questions,
+      pass_grade: t.pass_grade,
+      shuffle_questions: t.shuffle_questions,
+      assessment_type: t.assessment_type as AssessmentType,
+      timer_type: t.timer_type as TimerType,
+      score_type: (t.score_type as ScoreType) ?? "default",
+      start_date: dateOnly(t.start_date),
+      end_date: dateOnly(t.end_date),
+      code: t.code ?? "",
+      max_attempts: t.max_attempts ?? "",
+      is_graded: t.is_graded,
+      is_explanation_released: t.is_explanation_released,
+      user_id: t.user_id ?? 0,
+      status: t.status ? 1 : 0,
+    };
+  };
 
   const toPayload = (f: FormState): TestPayload => {
     const payload: TestPayload = {
@@ -465,8 +467,6 @@ export default function TryoutPage() {
                     <th className="p-3">Pengawas</th>
                     <th className="p-3">Waktu (detik)</th>
                     <th className="p-3">Shuffle</th>
-                    {/* <th className="p-3">Mulai</th>
-                    <th className="p-3">Berakhir</th> */}
                     <th className="p-3">Status</th>
                     <th className="p-3 text-right">Aksi</th>
                   </tr>
@@ -486,17 +486,17 @@ export default function TryoutPage() {
                         "-";
                       return (
                         <tr key={t.id} className="border-t align-top">
-                            <td className="p-3 min-w-[200px]">
+                          <td className="p-3 min-w-[200px]">
                             <div className="font-medium">{t.title}</div>
                             <div className="text-xs text-muted-foreground">
                               {t.sub_title || "-"}
                             </div>
                           </td>
                           <td className="p-3 min-w-[200px]">
-                          {(Array.isArray(t.schools) ? t.schools : [t.schools])
-                            .filter(Boolean)
-                            .map((s) => s && typeof s === "object" && "name" in s ? (s.name as string) : "-")
-                            .join(" | ")}
+                            {/* Render list sekolah dari properti t.schools */}
+                            {t.schools && t.schools.length > 0
+                              ? t.schools.map((s) => s.name).join(" | ")
+                              : "-"}
                           </td>
                           <td className="p-3">{name}</td>
                           <td className="p-3">
@@ -515,12 +515,6 @@ export default function TryoutPage() {
                               {t.shuffle_questions ? "Yes" : "No"}
                             </Badge>
                           </td>
-                          {/* <td className="p-3">
-                            {t.start_date ? displayDate(t.start_date) : "-"}
-                          </td>
-                          <td className="p-3">
-                            {t.end_date ? displayDate(t.end_date) : "-"}
-                          </td> */}
                           <td className="p-3">
                             {t.status === true ? (
                               <Badge variant="success">Aktif</Badge>
@@ -627,6 +621,7 @@ export default function TryoutPage() {
 
             <TryoutForm
               key={editing ? editing.id : "new"}
+              initialSchools={editing?.schools ?? []}
               initial={
                 editing
                   ? toForm(editing)

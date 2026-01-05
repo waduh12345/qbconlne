@@ -77,7 +77,7 @@ export default function StartTryoutPage() {
         participant_category_id: activeCategory.id,
       }).unwrap();
       router.push(
-        `/tryout/session/${participantTestId}/exam?category=${activeCategory.id}`
+        `/student/tryout/session/${participantTestId}/exam?category=${activeCategory.id}`
       );
     } catch (e) {
       await Swal.fire({

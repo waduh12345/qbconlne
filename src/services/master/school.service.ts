@@ -11,15 +11,30 @@ export const schoolApi = apiSlice.injectEndpoints({
         total: number;
         per_page: number;
       },
-      { page: number; paginate: number; search?: string }
+      // 👇 Update tipe argumen disini (tambah order & orderBy)
+      {
+        page: number;
+        paginate: number;
+        search?: string;
+        order?: string;
+        orderBy?: string;
+      }
     >({
-      query: ({ page, paginate, search }) => {
+      query: ({ page, paginate, search, order, orderBy }) => {
+        // Logic search existing
         const s =
           search && search.trim()
             ? `&search=${encodeURIComponent(search.trim())}`
             : "";
+
+        // Logic order (asc/desc)
+        const o = order ? `&order=${order}` : "";
+
+        // 👇 Logic orderBy (column name, e.g., 'schools.name')
+        const ob = orderBy ? `&orderBy=${orderBy}` : "";
+
         return {
-          url: `/public/schools?page=${page}&paginate=${paginate}${s}`,
+          url: `/public/schools?page=${page}&paginate=${paginate}${s}${o}${ob}`,
           method: "GET",
         };
       },
@@ -41,7 +56,8 @@ export const schoolApi = apiSlice.injectEndpoints({
         per_page: response.data.per_page,
       }),
     }),
-    // ✅ Get all (paginated + optional search)
+
+    // ✅ Get all (paginated + optional search + optional order + optional orderBy)
     getSchoolList: builder.query<
       {
         data: School[];
@@ -50,15 +66,29 @@ export const schoolApi = apiSlice.injectEndpoints({
         total: number;
         per_page: number;
       },
-      { page: number; paginate: number; search?: string }
+      // 👇 Update tipe argumen disini (tambah order & orderBy)
+      {
+        page: number;
+        paginate: number;
+        search?: string;
+        order?: string;
+        orderBy?: string;
+      }
     >({
-      query: ({ page, paginate, search }) => {
+      query: ({ page, paginate, search, order, orderBy }) => {
         const s =
           search && search.trim()
             ? `&search=${encodeURIComponent(search.trim())}`
             : "";
+
+        // Logic order (asc/desc)
+        const o = order ? `&order=${order}` : "";
+
+        // 👇 Logic orderBy (column name, e.g., 'schools.name')
+        const ob = orderBy ? `&orderBy=${orderBy}` : "";
+
         return {
-          url: `/master/schools?page=${page}&paginate=${paginate}${s}`,
+          url: `/master/schools?page=${page}&paginate=${paginate}${s}${o}${ob}`,
           method: "GET",
         };
       },

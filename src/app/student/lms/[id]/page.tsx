@@ -341,7 +341,7 @@ export default function LmsDetailPage() {
                       <div className="mt-4">
                         <Button
                           className="w-full rounded-xl bg-sky-500 font-medium hover:bg-sky-600"
-                          onClick={() => router.push(`/lms/view/${d.id}`)}
+                          onClick={() => router.push(`/student/lms/view/${d.id}`)}
                           title="Lihat materi"
                         >
                           <Play className="mr-2 h-4 w-4" />

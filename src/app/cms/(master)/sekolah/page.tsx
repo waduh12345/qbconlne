@@ -84,6 +84,8 @@ export default function SchoolPage() {
     page,
     paginate,
     search,
+    order: 'asc',
+    orderBy: 'schools.name',
     ...(provinceId ? { province_id: String(provinceId) } : {}),
     ...(regencyId ? { regency_id: String(regencyId) } : {}),
     ...(districtId ? { district_id: String(districtId) } : {}),

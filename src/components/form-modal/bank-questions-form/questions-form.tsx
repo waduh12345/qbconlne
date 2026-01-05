@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Settings2 } from "lucide-react";
 
 import type { Questions } from "@/types/bank-questions/questions";
 import type { CategoryQuestion } from "@/types/bank-questions/category-questions";
@@ -86,7 +86,14 @@ const DEFAULT_OPTIONS_MULTI: MCOption[] = [
 ];
 
 const DEFAULT_OPTIONS_CATEGORIZED: CategorizedOption[] = [
-  { text: "", point: 1, accurate_label: "", not_accurate_label: "", accurate: false, not_accurate: false },
+  {
+    text: "",
+    point: 1,
+    accurate_label: "Benar",
+    not_accurate_label: "Salah",
+    accurate: false,
+    not_accurate: false,
+  },
 ];
 
 const cloneMC = (list: MCOption[]): MCOption[] => list.map((o) => ({ ...o }));
@@ -119,6 +126,10 @@ export default function QuestionsForm({
   const [explanation, setExplanation] = useState<string>("");
   const [answer, setAnswer] = useState<string>("");
   const [totalPoint, setTotalPoint] = useState<number>(5);
+
+  // Global Label State for Categorized Options (Helper UI only)
+  const [globalAccurateLabel, setGlobalAccurateLabel] = useState("Benar");
+  const [globalNotAccurateLabel, setGlobalNotAccurateLabel] = useState("Salah");
 
   const editorKeyBase = isEdit && initial ? `q-${initial.id}` : "q-new";
 
@@ -174,6 +185,11 @@ export default function QuestionsForm({
         setOptionsCategorized(
           cast.length ? cloneCat(cast) : cloneCat(DEFAULT_OPTIONS_CATEGORIZED)
         );
+        // Hydrate global labels from the first option if available
+        if (cast.length > 0) {
+          setGlobalAccurateLabel(cast[0].accurate_label || "Benar");
+          setGlobalNotAccurateLabel(cast[0].not_accurate_label || "Salah");
+        }
       }
     }
 
@@ -311,6 +327,17 @@ export default function QuestionsForm({
       console.error(e);
       alert("Gagal menyimpan pertanyaan.");
     }
+  };
+
+  // Helper to update all labels at once
+  const applyGlobalLabels = (accLabel: string, notAccLabel: string) => {
+    setOptionsCategorized((prev) =>
+      prev.map((o) => ({
+        ...o,
+        accurate_label: accLabel,
+        not_accurate_label: notAccLabel,
+      }))
+    );
   };
 
   // ===== Render opsi =====
@@ -560,141 +587,229 @@ export default function QuestionsForm({
     if (type === "multiple_choice_multiple_category") {
       return (
         <Card>
-          <CardContent className="space-y-4 pt-6">
-            {optionsCategorized.map((opt, idx) => (
-              <div key={idx} className="grid gap-3 rounded-lg border p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                <div className="text-sm text-muted-foreground">Point</div>
-                <Input
-                  type="number"
-                  className="w-24"
-                  value={opt.point}
-                  onChange={(e) =>
-                  setOptionsCategorized((prev) => {
-                    const v = prev.map((o) => ({ ...o }));
-                    v[idx].point = Number(e.target.value || 0);
-                    return v;
-                  })
-                  }
-                />
-                </div>
-                <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch
-                  checked={opt.accurate}
-                  onCheckedChange={(v) =>
-                    setOptionsCategorized((prev) => {
-                    const arr = prev.map((o) => ({ ...o }));
-                    arr[idx].accurate = v;
-                    if (v) arr[idx].not_accurate = false;
-                    return arr;
-                    })
-                  }
+          <CardContent className="space-y-6 pt-6">
+            {/* Global Label Settings */}
+            <div className="rounded-lg bg-muted/50 p-4 border border-dashed">
+              <div className="flex items-center gap-2 mb-3">
+                <Settings2 className="h-4 w-4" />
+                <Label className="font-semibold">
+                  Pengaturan Label Kolom (Berlaku untuk semua pernyataan)
+                </Label>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label className="text-xs">
+                    Label Opsi 1 (e.g. Benar/Setuju)
+                  </Label>
+                  <Input
+                    value={globalAccurateLabel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGlobalAccurateLabel(val);
+                      applyGlobalLabels(val, globalNotAccurateLabel);
+                    }}
+                    placeholder="Benar"
                   />
-                  <span className="text-sm">Benar</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                  checked={opt.not_accurate}
-                  onCheckedChange={(v) =>
-                    setOptionsCategorized((prev) => {
-                    const arr = prev.map((o) => ({ ...o }));
-                    arr[idx].not_accurate = v;
-                    if (v) arr[idx].accurate = false;
-                    return arr;
-                    })
-                  }
+                <div className="grid gap-2">
+                  <Label className="text-xs">
+                    Label Opsi 2 (e.g. Salah/Tidak Setuju)
+                  </Label>
+                  <Input
+                    value={globalNotAccurateLabel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGlobalNotAccurateLabel(val);
+                      applyGlobalLabels(globalAccurateLabel, val);
+                    }}
+                    placeholder="Salah"
                   />
-                  <span className="text-sm">Salah</span>
                 </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                *Mengubah label di atas akan otomatis menyamakan label di semua
+                pernyataan di bawah.
+              </p>
+            </div>
 
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() =>
-                  setOptionsCategorized((prev) => {
-                    const arr = prev.map((o) => ({ ...o }));
-                    arr.splice(idx, 1);
-                    return arr;
-                  })
-                  }
+            {/* List Pernyataan */}
+            <div className="space-y-4">
+              {optionsCategorized.map((opt, idx) => (
+                <div
+                  key={idx}
+                  className="grid gap-3 rounded-lg border p-4 bg-white"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                  {/* Header Item: Tombol Delete & Indikator */}
+                  <div className="flex items-center justify-between border-b pb-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="h-6">
+                        Pernyataan #{idx + 1}
+                      </Badge>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 px-2"
+                      onClick={() =>
+                        setOptionsCategorized((prev) => {
+                          const arr = prev.map((o) => ({ ...o }));
+                          arr.splice(idx, 1);
+                          return arr;
+                        })
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Hapus
+                    </Button>
+                  </div>
+
+                  {/* Baris Input Label per item (bisa diedit manual jika ingin beda) */}
+                  <div className="grid grid-cols-2 gap-4 mb-2">
+                    <div className="grid gap-1">
+                      <Label className="text-[10px] text-muted-foreground">
+                        Label Opsi 1
+                      </Label>
+                      <Input
+                        className="h-8 text-xs"
+                        value={opt.accurate_label}
+                        onChange={(e) =>
+                          setOptionsCategorized((prev) => {
+                            const arr = prev.map((o) => ({ ...o }));
+                            arr[idx].accurate_label = e.target.value;
+                            return arr;
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px] text-muted-foreground">
+                        Label Opsi 2
+                      </Label>
+                      <Input
+                        className="h-8 text-xs"
+                        value={opt.not_accurate_label}
+                        onChange={(e) =>
+                          setOptionsCategorized((prev) => {
+                            const arr = prev.map((o) => ({ ...o }));
+                            arr[idx].not_accurate_label = e.target.value;
+                            return arr;
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Text Editor untuk Pernyataan */}
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold">
+                      Isi Pernyataan
+                    </Label>
+                    <SunEditor
+                      key={`${editorKeyBase}-opt-${type}-${idx}`}
+                      setContents={opt.text}
+                      onChange={(html: string) =>
+                        setOptionsCategorized((prev) => {
+                          const arr = prev.map((o) => ({ ...o }));
+                          arr[idx].text = html;
+                          return arr;
+                        })
+                      }
+                      setOptions={{
+                        minHeight: "100px",
+                        buttonList: [
+                          ["bold", "italic", "underline"],
+                          ["list", "align"],
+                          ["codeView"],
+                        ],
+                      }}
+                    />
+                  </div>
+
+                  {/* Penentuan Kunci Jawaban */}
+                  <div className="bg-slate-50 p-3 rounded-md mt-2 border">
+                    <Label className="text-xs font-semibold mb-2 block">
+                      Kunci Jawaban & Poin
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-6">
+                      {/* Switch Opsi 1 */}
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`acc-${idx}`}
+                          checked={opt.accurate}
+                          onCheckedChange={(v) =>
+                            setOptionsCategorized((prev) => {
+                              const arr = prev.map((o) => ({ ...o }));
+                              arr[idx].accurate = v;
+                              if (v) arr[idx].not_accurate = false; // Toggle logic
+                              return arr;
+                            })
+                          }
+                        />
+                        <Label
+                          htmlFor={`acc-${idx}`}
+                          className="text-sm cursor-pointer select-none"
+                        >
+                          {opt.accurate_label || "Opsi 1"} (Benar)
+                        </Label>
+                      </div>
+
+                      {/* Switch Opsi 2 */}
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`not-acc-${idx}`}
+                          checked={opt.not_accurate}
+                          onCheckedChange={(v) =>
+                            setOptionsCategorized((prev) => {
+                              const arr = prev.map((o) => ({ ...o }));
+                              arr[idx].not_accurate = v;
+                              if (v) arr[idx].accurate = false; // Toggle logic
+                              return arr;
+                            })
+                          }
+                        />
+                        <Label
+                          htmlFor={`not-acc-${idx}`}
+                          className="text-sm cursor-pointer select-none"
+                        >
+                          {opt.not_accurate_label || "Opsi 2"} (Benar)
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        <Label className="text-xs text-muted-foreground">
+                          Poin:
+                        </Label>
+                        <Input
+                          type="number"
+                          className="w-20 h-8"
+                          value={opt.point}
+                          onChange={(e) =>
+                            setOptionsCategorized((prev) => {
+                              const v = prev.map((o) => ({ ...o }));
+                              v[idx].point = Number(e.target.value || 0);
+                              return v;
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <Label className="text-xs">Teks</Label>
-              <SunEditor
-                key={`${editorKeyBase}-opt-${type}-${idx}`}
-                setContents={opt.text}
-                onChange={(html: string) =>
-                setOptionsCategorized((prev) => {
-                  const arr = prev.map((o) => ({ ...o }));
-                  arr[idx].text = html;
-                  return arr;
-                })
-                }
-                setOptions={{
-                minHeight: "120px",
-                buttonList: [
-                  ["bold", "italic", "underline", "strike"],
-                  ["fontColor", "hiliteColor"],
-                  ["align", "list"],
-                  ["link", "image"],
-                  ["codeView"],
-                ],
-                }}
-                onImageUploadBefore={handleSunUpload}
-                onVideoUploadBefore={handleSunUpload}
-              />
-
-              <div className="grid gap-2 mt-2">
-                <Label className="text-xs">Label Benar</Label>
-                <Input
-                type="text"
-                value={opt.accurate_label}
-                onChange={(e) =>
-                  setOptionsCategorized((prev) => {
-                  const arr = prev.map((o) => ({ ...o }));
-                  arr[idx].accurate_label = e.target.value;
-                  return arr;
-                  })
-                }
-                placeholder="Label untuk Benar"
-                />
-              </div>
-              <div className="grid gap-2 mt-2">
-                <Label className="text-xs">Label Salah</Label>
-                <Input
-                type="text"
-                value={opt.not_accurate_label}
-                onChange={(e) =>
-                  setOptionsCategorized((prev) => {
-                  const arr = prev.map((o) => ({ ...o }));
-                  arr[idx].not_accurate_label = e.target.value;
-                  return arr;
-                  })
-                }
-                placeholder="Label untuk Salah"
-                />
-              </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             <Button
               type="button"
               variant="outline"
+              className="w-full border-dashed"
               onClick={() =>
                 setOptionsCategorized((prev) => {
                   const arr = prev.map((o) => ({ ...o }));
                   arr.push({
                     text: "",
                     point: 1,
-                    accurate_label: "",
-                    not_accurate_label: "",
+                    accurate_label: globalAccurateLabel, // Use global setting
+                    not_accurate_label: globalNotAccurateLabel, // Use global setting
                     accurate: false,
                     not_accurate: false,
                   });
@@ -702,17 +817,22 @@ export default function QuestionsForm({
                 })
               }
             >
-              <Plus className="mr-2 h-4 w-4" /> Tambah Item
+              <Plus className="mr-2 h-4 w-4" /> Tambah Pernyataan Baru
             </Button>
 
-            <div className="grid gap-2">
-              <Label>Total Point</Label>
+            <div className="grid gap-2 pt-4 border-t">
+              <Label>Total Point (Akumulasi)</Label>
               <Input
                 type="number"
                 className="w-32"
                 value={totalPoint}
                 onChange={(e) => setTotalPoint(Number(e.target.value || 0))}
               />
+              <p className="text-xs text-muted-foreground">
+                *Total poin biasanya dihitung otomatis dari jumlah poin tiap
+                pernyataan saat ujian, namun input ini digunakan sebagai nilai
+                maksimum soal.
+              </p>
             </div>
           </CardContent>
         </Card>
