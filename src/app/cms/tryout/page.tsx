@@ -487,7 +487,7 @@ export default function TryoutPage() {
                       setPage(1);
                     }}
                   >
-                    <SelectTrigger className="bg-white">
+                    <SelectTrigger className="bg-white w-full">
                       <SelectValue placeholder="Tipe Paket" />
                     </SelectTrigger>
                     <SelectContent>
