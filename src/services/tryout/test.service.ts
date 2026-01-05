@@ -77,7 +77,7 @@ type VoidResponse = {
  * ===================== */
 export const testApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Get all (paginated + optional search + 🆕 school_id + 🆕 isParent)
+    // ✅ Get all (paginated + optional search + 🆕 school_id + 🆕 isParent + 🆕 tryout_id)
     getTestList: builder.query<
       {
         data: Test[];
@@ -95,7 +95,8 @@ export const testApi = apiSlice.injectEndpoints({
         orderDirection?: "asc" | "desc";
         school_id?: number | null;
         is_active?: number | null;
-        isParent?: boolean | number; // 🆕 Added isParent param
+        isParent?: boolean | number;
+        tryout_id?: number | null; // 🆕 Added tryout_id param
       }
     >({
       query: ({
@@ -108,6 +109,7 @@ export const testApi = apiSlice.injectEndpoints({
         school_id,
         is_active,
         isParent,
+        tryout_id,
       }) => {
         const qs = new URLSearchParams();
 
@@ -135,6 +137,11 @@ export const testApi = apiSlice.injectEndpoints({
         // 🆕 Tambahkan filter is_parent jika ada
         if (isParent) {
           qs.set("is_parent", "1");
+        }
+
+        // 🆕 Tambahkan filter tryout_id jika ada
+        if (tryout_id !== undefined && tryout_id !== null) {
+          qs.set("tryout_id", String(tryout_id));
         }
 
         return {
