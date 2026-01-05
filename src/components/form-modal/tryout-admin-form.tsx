@@ -20,8 +20,12 @@ import { Loader2, X } from "lucide-react";
 
 import type { School } from "@/types/master/school";
 import type { Users } from "@/types/user";
+import type { Test } from "@/types/tryout/test"; // Import Test type
+
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
+import { useGetTestListQuery } from "@/services/tryout/test.service"; // Import Test Service
+import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = "per_test" | "per_category";
@@ -50,11 +54,13 @@ export type FormState = {
   is_explanation_released: boolean;
   user_id: number; // pengawas
   status: number;
+  // 🆕 Added fields
+  parent_id: number | null;
+  tryout_id: number | null;
 };
 
 type Props = {
   initial: FormState;
-  // ✅ PERBAIKAN: Menerima list sekolah awal agar nama sekolah bisa ditampilkan
   initialSchools?: School[];
   submitting?: boolean;
   onCancel: () => void;
@@ -63,9 +69,7 @@ type Props = {
 
 const SunEditor = dynamic(() => import("suneditor-react"), { ssr: false });
 
-type ButtonList = (string | string[])[];
-
-const defaultButtons: ButtonList = [
+const defaultButtons = [
   ["undo", "redo"],
   ["bold", "italic", "underline", "strike", "removeFormat"],
   ["font", "fontSize"],
@@ -75,7 +79,6 @@ const defaultButtons: ButtonList = [
   ["codeView", "fullScreen"],
 ];
 
-/** Normalisasi ke YYYY-MM-DD */
 function dateOnly(input?: string | null): string {
   if (!input) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
@@ -91,7 +94,7 @@ function dateOnly(input?: string | null): string {
 
 export default function TryoutForm({
   initial,
-  initialSchools = [], // Default kosong jika create baru
+  initialSchools = [],
   submitting,
   onCancel,
   onSubmit,
@@ -99,7 +102,7 @@ export default function TryoutForm({
   const [form, setForm] = React.useState<FormState>(initial);
   const [newSchoolId, setNewSchoolId] = React.useState<number | null>(null);
 
-  // Sekolah
+  // --- 1. Sekolah ---
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
   const { data: schoolListResp, isFetching: loadingSchools } =
     useGetSchoolListQuery(
@@ -113,13 +116,9 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
 
-  // ✅ PERBAIKAN: Gabungkan sekolah dari API dan sekolah dari initial (mode edit)
-  // Ini memastikan nama sekolah tetap ada meskipun sekolah tsb tidak muncul di page 1 API list
   const allSchools = React.useMemo(() => {
     const fromApi = schoolListResp?.data ?? [];
     const fromInitial = initialSchools;
-
-    // Gabungkan dan hilangkan duplikat berdasarkan ID
     const combined = [...fromApi];
     fromInitial.forEach((initialS) => {
       if (!combined.some((apiS) => apiS.id === initialS.id)) {
@@ -129,18 +128,16 @@ export default function TryoutForm({
     return combined;
   }, [schoolListResp, initialSchools]);
 
-  // Sekolah yang belum dipilih (untuk combobox)
   const availableSchools = React.useMemo(() => {
     const schoolIds = Array.isArray(form.school_id) ? form.school_id : [];
     return allSchools.filter((s) => !schoolIds.includes(s.id));
   }, [allSchools, form.school_id]);
 
-  // Map untuk mendapatkan nama sekolah dari ID
   const schoolMap = React.useMemo(() => {
     return new Map(allSchools.map((s) => [s.id, s.name]));
   }, [allSchools]);
 
-  // Pengawas (role_id = 3)
+  // --- 2. Pengawas ---
   const [pengawasSearch, setPengawasSearch] = React.useState<string>("");
   const {
     data: pengawasResp,
@@ -155,6 +152,41 @@ export default function TryoutForm({
   const handlePengawasOpenRefetch = React.useCallback(() => {
     refetchPengawas();
   }, [refetchPengawas]);
+
+  // --- 3. Parent Test (Kategori) ---
+  const [parentSearch, setParentSearch] = React.useState<string>("");
+  const {
+    data: parentResp,
+    isFetching: loadingParent,
+    refetch: refetchParent,
+  } = useGetTestListQuery(
+    {
+      page: 1,
+      paginate: 30,
+      search: parentSearch,
+      isParent: 1, // Filter hanya yang parent
+    },
+    { refetchOnMountOrArgChange: true }
+  );
+  const parentList: Test[] = parentResp?.data ?? [];
+
+  // --- 4. Tryout ---
+  const [tryoutSearch, setTryoutSearch] = React.useState<string>("");
+  const {
+    data: tryoutResp,
+    isFetching: loadingTryout,
+    refetch: refetchTryout,
+  } = useGetTryoutListQuery(
+    {
+      page: 1,
+      paginate: 30,
+      search: tryoutSearch,
+      status: 1, // Opsional: hanya yang aktif
+    },
+    { refetchOnMountOrArgChange: true }
+  );
+  // Asumsi tipe data dari useGetTryoutListQuery adalah { data: Tryout[] }
+  const tryoutList = tryoutResp?.data ?? [];
 
   React.useEffect(() => {
     setForm(() => ({
@@ -280,6 +312,7 @@ export default function TryoutForm({
           </div>
         </div>
 
+        {/* Pengawas */}
         <div>
           <Label>Pengawas *</Label>
           <div className="h-2" />
@@ -293,6 +326,38 @@ export default function TryoutForm({
             placeholder="Pilih Pengawas"
             getOptionLabel={(u) => `${u.name} (${u.email})`}
           />
+        </div>
+
+        {/* 🆕 Tryout & Parent Test */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Tryout (Opsional)</Label>
+            <div className="h-2" />
+            <Combobox
+              value={form.tryout_id}
+              onChange={(value) => setForm({ ...form, tryout_id: value })}
+              onSearchChange={setTryoutSearch}
+              onOpenRefetch={refetchTryout}
+              data={tryoutList}
+              isLoading={loadingTryout}
+              placeholder="Pilih Tryout"
+              getOptionLabel={(t) => t.title}
+            />
+          </div>
+          <div>
+            <Label>Induk Tes (Opsional)</Label>
+            <div className="h-2" />
+            <Combobox<Test>
+              value={form.parent_id}
+              onChange={(value) => setForm({ ...form, parent_id: value })}
+              onSearchChange={setParentSearch}
+              onOpenRefetch={refetchParent}
+              data={parentList}
+              isLoading={loadingParent}
+              placeholder="Pilih Induk Tes"
+              getOptionLabel={(t) => t.title}
+            />
+          </div>
         </div>
 
         <div>

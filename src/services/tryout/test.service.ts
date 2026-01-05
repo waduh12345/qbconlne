@@ -12,16 +12,16 @@ export type AssessmentType = string; // "irt" | "standard"
 export interface TestPayload {
   title: string;
   sub_title: string | null;
-  shuffle_questions: boolean | number; // <- angka sesuai spesifikasi backend
+  shuffle_questions: boolean | number;
   timer_type: TimerType;
   score_type: ScoreType;
 
   // kondisional
-  total_time?: number; // wajib jika timer_type = 'per_test'
-  start_date?: string; // wajib jika score_type = 'irt'
-  end_date?: string; // wajib jika score_type = 'irt'
+  total_time?: number;
+  start_date?: string;
+  end_date?: string;
 
-  // field lain (optional, sesuai backend kamu)
+  // field lain
   slug?: string;
   description?: string | null;
   total_questions?: number;
@@ -31,6 +31,15 @@ export interface TestPayload {
   max_attempts?: string | null;
   is_graded?: boolean;
   is_explanation_released?: boolean;
+
+  // 🆕 Added fields
+  parent_id?: number | null;
+  tryout_id?: number | null;
+
+  // Relation fields
+  school_id?: number[];
+  user_id?: number;
+  status: number;
 }
 
 /** Untuk update jika backend menerima parsial */
@@ -68,7 +77,7 @@ type VoidResponse = {
  * ===================== */
 export const testApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Get all (paginated + optional search + 🆕 school_id)
+    // ✅ Get all (paginated + optional search + 🆕 school_id + 🆕 isParent)
     getTestList: builder.query<
       {
         data: Test[];
@@ -86,6 +95,7 @@ export const testApi = apiSlice.injectEndpoints({
         orderDirection?: "asc" | "desc";
         school_id?: number | null;
         is_active?: number | null;
+        isParent?: boolean | number; // 🆕 Added isParent param
       }
     >({
       query: ({
@@ -96,7 +106,8 @@ export const testApi = apiSlice.injectEndpoints({
         orderBy,
         orderDirection,
         school_id,
-        is_active
+        is_active,
+        isParent,
       }) => {
         const qs = new URLSearchParams();
 
@@ -104,12 +115,9 @@ export const testApi = apiSlice.injectEndpoints({
         qs.set("page", String(page));
         qs.set("paginate", String(paginate));
 
-        // 🆕 jika ada school_id, pakai pola searchBySpecific=school_id & search=<id>
         if (typeof school_id === "number") {
           qs.set("school_id", String(school_id));
-          // qs.set("search", String(school_id));
         } else {
-          // fallback ke perilaku lama
           if (search && search.trim()) qs.set("search", search.trim());
           if (searchBySpecific && searchBySpecific.trim()) {
             qs.set("searchBySpecific", searchBySpecific.trim());
@@ -120,11 +128,15 @@ export const testApi = apiSlice.injectEndpoints({
         if (orderDirection && orderDirection.trim()) {
           qs.set("order", orderDirection.trim());
         }
-        if (is_active !== undefined) {
+        if (is_active !== undefined && is_active !== null) {
           qs.set("is_active", String(is_active));
         }
 
-        // contoh hasil: /test/tests?paginate=10&searchBySpecific=school_id&page=1&search=2
+        // 🆕 Tambahkan filter is_parent jika ada
+        if (isParent) {
+          qs.set("is_parent", "1");
+        }
+
         return {
           url: `/test/tests?${qs.toString()}`,
           method: "GET",

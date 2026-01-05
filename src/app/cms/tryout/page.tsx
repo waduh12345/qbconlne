@@ -15,7 +15,7 @@ import { useGetUsersListQuery } from "@/services/users-management.service";
 import { useGetMeQuery } from "@/services/auth.service";
 import type { Test } from "@/types/tryout/test";
 import type { Users } from "@/types/user";
-import type { School } from "@/types/master/school"; // Pastikan import ini ada
+import type { School } from "@/types/master/school";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,11 +50,9 @@ import TryoutForm, {
 import { Combobox } from "@/components/ui/combo-box";
 import TryoutMonitoringDialog from "@/components/modal/tryout/monitoring-student";
 
-// Interface untuk baris data tabel, menyesuaikan response API
 type TestRow = Test & {
   user_id?: number | null;
   pengawas_name?: string | null;
-  // API mengembalikan array object schools
   schools?: School[];
 };
 
@@ -79,6 +77,8 @@ type TestPayload = {
   is_explanation_released?: boolean;
   user_id: number;
   status: number;
+  parent_id?: number | null;
+  tryout_id?: number | null;
 };
 
 const emptyForm: FormState = {
@@ -102,6 +102,8 @@ const emptyForm: FormState = {
   is_explanation_released: false,
   user_id: 0,
   status: 1,
+  parent_id: null,
+  tryout_id: null,
 };
 
 function dateOnly(input?: string | null): string {
@@ -124,7 +126,6 @@ export default function TryoutPage() {
   const [searchBySpecific, setSearchBySpecific] = useState("");
   const [exportingId, setExportingId] = useState<number | null>(null);
 
-  // 🔹 state filter sekolah
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [schoolSearch, setSchoolSearch] = useState("");
 
@@ -134,7 +135,6 @@ export default function TryoutPage() {
   const isPengawas = roles.some((r) => r.name === "pengawas");
   const myId = me?.id ?? 0;
 
-  // 🔹 ambil data sekolah (untuk combobox filter)
   const {
     data: schoolResp,
     isLoading: loadingSchools,
@@ -146,7 +146,6 @@ export default function TryoutPage() {
 
   const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
-  // 🔹 query utama list tryout
   const baseQuery = {
     page,
     paginate,
@@ -189,9 +188,7 @@ export default function TryoutPage() {
   const [editing, setEditing] = useState<TestRow | null>(null);
   const [monitoringTest, setMonitoringTest] = useState<TestRow | null>(null);
 
-  // ✅ PERBAIKAN: Mapping data schools dari API ke school_id (array of number)
   const toForm = (t: TestRow): FormState => {
-    // Ambil ID dari array schools jika ada
     const schoolIds = t.schools?.map((s) => s.id) ?? [];
 
     return {
@@ -215,6 +212,8 @@ export default function TryoutPage() {
       is_explanation_released: t.is_explanation_released,
       user_id: t.user_id ?? 0,
       status: t.status ? 1 : 0,
+      parent_id: t.parent_id ?? null,
+      tryout_id: t.tryout_id ?? null,
     };
   };
 
@@ -237,6 +236,8 @@ export default function TryoutPage() {
       is_explanation_released: f.is_explanation_released,
       user_id: Number(f.user_id || 0),
       status: Number(f.status || 0),
+      parent_id: f.parent_id,
+      tryout_id: f.tryout_id,
     };
 
     if (f.timer_type === "per_test") {
@@ -400,7 +401,6 @@ export default function TryoutPage() {
                 </select>
               </div>
 
-              {/* Search + Filter Sekolah */}
               <div className="ml-auto w-full flex flex-col md:flex-row gap-2">
                 <Input
                   placeholder="Search…"
@@ -493,7 +493,6 @@ export default function TryoutPage() {
                             </div>
                           </td>
                           <td className="p-3 min-w-[200px]">
-                            {/* Render list sekolah dari properti t.schools */}
                             {t.schools && t.schools.length > 0
                               ? t.schools.map((s) => s.name).join(" | ")
                               : "-"}

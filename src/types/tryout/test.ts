@@ -1,3 +1,5 @@
+import { Tryout } from "@/services/tryout/sub-tryout.service";
+
 export interface Test {
   id: number;
   school_id: number;
@@ -21,6 +23,10 @@ export interface Test {
   is_explanation_released: boolean;
   created_at: string;
   updated_at: string;
+  parent_id?: number | null;
+  parent: Test | null;
+  tryout_id?: number | null;
+  tryout: Tryout | null;
   schools?: Array<{
     id: number;
     name: string;
