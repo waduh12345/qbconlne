@@ -122,6 +122,9 @@ export const questionsApi = apiSlice.injectEndpoints({
         qs.set("page", String(page));
         qs.set("paginate", String(paginate));
 
+        qs.set("orderBy", "id");
+        qs.set("order", "asc");
+
         if (search && search.trim()) qs.set("search", search.trim());
         if (searchBySpecific && searchBySpecific.trim()) {
           qs.set("searchBySpecific", searchBySpecific.trim());
