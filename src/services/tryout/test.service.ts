@@ -1,5 +1,5 @@
 import { apiSlice } from "@/services/base-query";
-import type { Test } from "@/types/tryout/test";
+import type { Test, TestPayload } from "@/types/tryout/test";
 
 /** =====================
  * Payload Types (API)
@@ -7,40 +7,6 @@ import type { Test } from "@/types/tryout/test";
 export type TimerType = string;
 export type ScoreType = string; //"irt" | "default"
 export type AssessmentType = string; // "irt" | "standard"
-
-/** Payload yang DIKIRIM ke backend saat create/update */
-export interface TestPayload {
-  title: string;
-  sub_title: string | null;
-  shuffle_questions: boolean | number;
-  timer_type: TimerType;
-  score_type: ScoreType;
-
-  // kondisional
-  total_time?: number;
-  start_date?: string;
-  end_date?: string;
-
-  // field lain
-  slug?: string;
-  description?: string | null;
-  total_questions?: number;
-  pass_grade?: number;
-  assessment_type?: AssessmentType;
-  code?: string | null;
-  max_attempts?: string | null;
-  is_graded?: boolean;
-  is_explanation_released?: boolean;
-
-  // 🆕 Added fields
-  parent_id?: number | null;
-  tryout_id?: number | null;
-
-  // Relation fields
-  school_id?: number[];
-  user_id?: number;
-  status: number;
-}
 
 /** Untuk update jika backend menerima parsial */
 export type TestUpdatePayload = Partial<TestPayload>;

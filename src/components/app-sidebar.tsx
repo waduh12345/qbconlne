@@ -91,7 +91,7 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         url: "/cms/tryout",
         icon: IconZoomQuestion,
         children: [
-          { title: "Sub Menu Kategori", url: "/cms/tryout/sub-menu" },
+          { title: "Kategori", url: "/cms/tryout/sub-menu" },
           { title: "Try Out", url: "/cms/tryout" },
         ]
       },

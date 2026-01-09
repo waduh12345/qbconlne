@@ -1,5 +1,18 @@
 import { Tryout } from "@/services/tryout/sub-tryout.service";
 
+interface SchoolExcept {
+  id: number;
+  province_id: string;
+  regency_id: string;
+  district_id:string;
+  village_id: string;
+  name: string;
+  description: string;
+  status: number | boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Test {
   id: number;
   school_id: number;
@@ -47,6 +60,9 @@ export interface Test {
   status?: boolean | number;
   user_id: number | null;
   pengawas_name: string | null;
+  all_school: number; // 🆕 1 atau 0
+  school_except_id?: number[];
+  school_excepts: SchoolExcept[];
 }
 
 // ===== API enums yang dipakai payload =====
@@ -59,14 +75,14 @@ export interface TestPayload {
   school_id: number[];
   title: string;
   sub_title: string | null;
-  shuffle_questions: boolean | number;        // <- sesuai backend
-  timer_type: TimerType;           // 'per_test' | 'per_category'
-  score_type: ScoreType;           // 'irt' | 'default'
+  shuffle_questions: boolean | number; // <- sesuai backend
+  timer_type: TimerType; // 'per_test' | 'per_category'
+  score_type: ScoreType; // 'irt' | 'default'
 
   // field kondisional:
-  total_time?: number;             // wajib jika timer_type = 'per_test'
-  start_date?: string;             // wajib jika score_type = 'irt'
-  end_date?: string;               // wajib jika score_type = 'irt'
+  total_time?: number; // wajib jika timer_type = 'per_test'
+  start_date?: string; // wajib jika score_type = 'irt'
+  end_date?: string; // wajib jika score_type = 'irt'
 
   // field lain yang backend-mu terima (opsional)
   slug?: string;
@@ -79,6 +95,11 @@ export interface TestPayload {
   status?: number;
   is_graded?: boolean;
   is_explanation_released?: boolean;
+  all_school: number;
+  user_id: number;
+  parent_id: number | null;
+  tryout_id: number | null;
+  school_except_id?: number[];
 }
 
 // Untuk update jika backend mengizinkan parsial

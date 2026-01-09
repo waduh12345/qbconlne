@@ -16,15 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, School as SchoolIcon, Ban } from "lucide-react";
 
 import type { School } from "@/types/master/school";
 import type { Users } from "@/types/user";
-import type { Test } from "@/types/tryout/test"; // Import Test type
+import type { Test } from "@/types/tryout/test";
 
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
-import { useGetTestListQuery } from "@/services/tryout/test.service"; // Import Test Service
+import {
+  useGetTestListQuery,
+  useGetTestByIdQuery,
+} from "@/services/tryout/test.service";
 import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
 
 /** === Shared enums (sinkron dgn service) === */
@@ -34,10 +37,13 @@ export type AssessmentType = string;
 
 /** === Form shape === */
 export type FormState = {
-  school_id: number[]; // Array of school IDs
+  id?: number;
+  school_id: number[];
   title: string;
   sub_title: string;
   slug: string;
+  school_except_id: number[];
+  all_school: number;
   description: string;
   total_time: number;
   total_questions: number;
@@ -46,15 +52,14 @@ export type FormState = {
   assessment_type: AssessmentType;
   timer_type: TimerType;
   score_type: ScoreType;
-  start_date: string; // YYYY-MM-DD
-  end_date: string; // YYYY-MM-DD
+  start_date: string;
+  end_date: string;
   code: string;
   max_attempts: string;
   is_graded: boolean;
   is_explanation_released: boolean;
-  user_id: number; // pengawas
+  user_id: number;
   status: number;
-  // 🆕 Added fields
   parent_id: number | null;
   tryout_id: number | null;
 };
@@ -94,21 +99,77 @@ function dateOnly(input?: string | null): string {
 
 export default function TryoutForm({
   initial,
-  initialSchools = [],
   submitting,
   onCancel,
   onSubmit,
 }: Props) {
+  // 1. Fetch Detail Data jika Mode Edit (initial.id ada)
+  const { data: detailData, isFetching: loadingDetail } = useGetTestByIdQuery(
+    initial.id!,
+    { skip: !initial.id, refetchOnMountOrArgChange: true }
+  );
+
   const [form, setForm] = React.useState<FormState>(initial);
   const [newSchoolId, setNewSchoolId] = React.useState<number | null>(null);
+  const [newExceptId, setNewExceptId] = React.useState<number | null>(null);
 
-  // --- 1. Sekolah ---
+  // --- Sync Form dengan Data Detail API (Mode Edit) ---
+  React.useEffect(() => {
+    if (detailData) {
+      // Tidak menggunakan 'any', akses properti langsung dari interface Test
+      // Pastikan interface Test sudah memiliki field school_excepts
+      const schools = detailData.schools ?? [];
+      const excepts = detailData.school_excepts ?? [];
+
+      setForm((prev) => ({
+        ...prev,
+        title: detailData.title,
+        sub_title: detailData.sub_title ?? "",
+        slug: detailData.slug ?? "",
+        description: detailData.description ?? "",
+        total_time: detailData.total_time,
+        total_questions: detailData.total_questions,
+        pass_grade: detailData.pass_grade,
+        shuffle_questions: detailData.shuffle_questions,
+        assessment_type: detailData.assessment_type as AssessmentType,
+        timer_type: detailData.timer_type as TimerType,
+        score_type: (detailData.score_type as ScoreType) ?? "default",
+        start_date: dateOnly(detailData.start_date),
+        end_date: dateOnly(detailData.end_date),
+        code: detailData.code ?? "",
+        max_attempts: detailData.max_attempts ?? "",
+        is_graded: detailData.is_graded,
+        is_explanation_released: detailData.is_explanation_released,
+        user_id: detailData.user_id ?? 0,
+        status: detailData.status ? 1 : 0,
+        parent_id: detailData.parent_id ?? null,
+        tryout_id: detailData.tryout_id ?? null,
+
+        // Logika Sekolah
+        all_school: detailData.all_school ? 1 : 0,
+        school_id: schools.map((s) => s.id),
+        school_except_id: excepts.map((s) => s.id),
+      }));
+    } else {
+      // Mode Create: Gunakan initial props
+      if (!initial.id) {
+        setForm((prev) => ({
+          ...prev,
+          ...initial,
+          start_date: dateOnly(initial.start_date),
+          end_date: dateOnly(initial.end_date),
+        }));
+      }
+    }
+  }, [detailData, initial]);
+
+  // --- 2. Sekolah (Pencarian via API) ---
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
   const { data: schoolListResp, isFetching: loadingSchools } =
     useGetSchoolListQuery(
       {
         page: 1,
-        paginate: 30,
+        paginate: 50,
         search: schoolSearch,
         order: "asc",
         orderBy: "schools.name",
@@ -116,28 +177,56 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
 
+  // Menggabungkan data sekolah dari API pencarian dengan data sekolah yang sedang terpilih (dari detailData)
+  // Ini penting agar badge sekolah tetap tampil namanya meskipun sekolah tersebut tidak ada di page 1 pencarian API.
   const allSchools = React.useMemo(() => {
     const fromApi = schoolListResp?.data ?? [];
-    const fromInitial = initialSchools;
     const combined = [...fromApi];
-    fromInitial.forEach((initialS) => {
-      if (!combined.some((apiS) => apiS.id === initialS.id)) {
-        combined.push(initialS);
-      }
-    });
-    return combined;
-  }, [schoolListResp, initialSchools]);
 
+    if (detailData) {
+      // Gabungkan schools (akses)
+      if (detailData.schools) {
+        detailData.schools.forEach((s) => {
+          // Cek apakah sudah ada di list (by id)
+          if (!combined.some((apiS) => apiS.id === s.id)) {
+            // Karena tipe School di Test.schools dan School di API list sedikit beda struktur pivot-nya,
+            // kita cast ke School atau ambil field yang relevan. Di sini kita asumsikan strukturnya kompatibel untuk id & name.
+            combined.push(s as unknown as School);
+          }
+        });
+      }
+      // Gabungkan school_excepts (pengecualian)
+      if (detailData.school_excepts) {
+        detailData.school_excepts.forEach((s) => {
+          if (!combined.some((apiS) => apiS.id === s.id)) {
+            combined.push(s as unknown as School);
+          }
+        });
+      }
+    }
+    return combined;
+  }, [schoolListResp, detailData]);
+
+  // Filter sekolah yang tersedia untuk input "Sekolah Akses" (belum dipilih)
   const availableSchools = React.useMemo(() => {
     const schoolIds = Array.isArray(form.school_id) ? form.school_id : [];
     return allSchools.filter((s) => !schoolIds.includes(s.id));
   }, [allSchools, form.school_id]);
 
+  // Filter sekolah yang tersedia untuk input "Sekolah Pengecualian" (belum dipilih)
+  const availableExceptSchools = React.useMemo(() => {
+    const exceptIds = Array.isArray(form.school_except_id)
+      ? form.school_except_id
+      : [];
+    return allSchools.filter((s) => !exceptIds.includes(s.id));
+  }, [allSchools, form.school_except_id]);
+
+  // Map untuk menampilkan nama sekolah di badge berdasarkan ID
   const schoolMap = React.useMemo(() => {
     return new Map(allSchools.map((s) => [s.id, s.name]));
   }, [allSchools]);
 
-  // --- 2. Pengawas ---
+  // --- 3. Pengawas ---
   const [pengawasSearch, setPengawasSearch] = React.useState<string>("");
   const {
     data: pengawasResp,
@@ -153,7 +242,7 @@ export default function TryoutForm({
     refetchPengawas();
   }, [refetchPengawas]);
 
-  // --- 3. Parent Test (Kategori) ---
+  // --- 4. Parent Test (Kategori) ---
   const [parentSearch, setParentSearch] = React.useState<string>("");
   const {
     data: parentResp,
@@ -164,13 +253,13 @@ export default function TryoutForm({
       page: 1,
       paginate: 30,
       search: parentSearch,
-      isParent: 1, // Filter hanya yang parent
+      isParent: 1,
     },
     { refetchOnMountOrArgChange: true }
   );
   const parentList: Test[] = parentResp?.data ?? [];
 
-  // --- 4. Tryout ---
+  // --- 5. Tryout ---
   const [tryoutSearch, setTryoutSearch] = React.useState<string>("");
   const {
     data: tryoutResp,
@@ -181,25 +270,19 @@ export default function TryoutForm({
       page: 1,
       paginate: 30,
       search: tryoutSearch,
-      status: 1, // Opsional: hanya yang aktif
+      status: 1,
     },
     { refetchOnMountOrArgChange: true }
   );
-  // Asumsi tipe data dari useGetTryoutListQuery adalah { data: Tryout[] }
   const tryoutList = tryoutResp?.data ?? [];
-
-  React.useEffect(() => {
-    setForm(() => ({
-      ...initial,
-      start_date: dateOnly(initial.start_date),
-      end_date: dateOnly(initial.end_date),
-    }));
-  }, [initial]);
 
   const validate = (): string | null => {
     if (!form.title.trim()) return "Judul wajib diisi.";
-    if (form.school_id.length === 0)
-      return "Sekolah wajib diisi (minimal satu).";
+
+    // Validasi Manual: Wajib pilih minimal 1 sekolah
+    if (form.all_school === 0 && form.school_id.length === 0)
+      return "Pilih minimal satu sekolah jika mode Manual.";
+
     if (!form.user_id) return "Pengawas wajib dipilih.";
 
     if (
@@ -224,21 +307,38 @@ export default function TryoutForm({
       void Swal.fire({ icon: "warning", title: err });
       return;
     }
-    await onSubmit(form);
+
+    // Bersihkan data sebelum submit agar konsisten dengan pilihan user
+    const payload = { ...form };
+    if (payload.all_school === 1) {
+      // Jika semua sekolah, list sekolah akses harus kosong (karena logika backend biasanya 'empty' school_id means all if all_school flag is true)
+      // Namun untuk keamanan, kita kosongkan school_id manual
+      payload.school_id = [];
+    } else {
+      // Jika manual, list pengecualian harus kosong
+      payload.school_except_id = [];
+    }
+
+    await onSubmit(payload);
   };
 
   const handleAddSchool = () => {
     if (newSchoolId) {
       setForm((prev) => ({
         ...prev,
-        school_id: [
-          ...new Set([
-            ...(Array.isArray(prev.school_id) ? prev.school_id : []),
-            newSchoolId,
-          ]),
-        ],
+        school_id: [...new Set([...prev.school_id, newSchoolId])],
       }));
       setNewSchoolId(null);
+    }
+  };
+
+  const handleAddExceptSchool = () => {
+    if (newExceptId) {
+      setForm((prev) => ({
+        ...prev,
+        school_except_id: [...new Set([...prev.school_except_id, newExceptId])],
+      }));
+      setNewExceptId(null);
     }
   };
 
@@ -249,70 +349,171 @@ export default function TryoutForm({
     }));
   };
 
+  const handleRemoveExceptSchool = (id: number) => {
+    setForm((prev) => ({
+      ...prev,
+      school_except_id: prev.school_except_id.filter((sId) => sId !== id),
+    }));
+  };
+
   const handleRTChange = React.useCallback((html: string) => {
     setForm((prev) => ({ ...prev, description: html }));
   }, []);
+
+  // Tampilkan loading jika sedang fetch detail (hanya saat edit)
+  if (initial.id && loadingDetail) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Kiri */}
       <div className="space-y-3">
-        {/* Sekolah (Multi-select) */}
+        {/* Urutan 1: Kategori Tryout */}
         <div>
-          <Label>Sekolah * (Bisa pilih lebih dari satu)</Label>
+          <Label>Kategori Tryout</Label>
           <div className="h-2" />
-
-          {/* List Sekolah yang Sudah Dipilih */}
-          <div className="mb-3 flex flex-wrap gap-2 min-h-[38px] items-center rounded-md border p-2 bg-zinc-50">
-            {form.school_id.length > 0 ? (
-              form.school_id.map((id) => (
-                <Badge
-                  key={id}
-                  variant="default"
-                  className="bg-sky-500 hover:bg-sky-600"
-                >
-                  {schoolMap.get(id) ?? `ID:${id}`}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSchool(id)}
-                    className="ml-1 rounded-full p-0.5 hover:bg-white/30 transition"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))
-            ) : (
-              <span className="text-sm text-zinc-500">
-                Belum ada sekolah dipilih.
-              </span>
-            )}
-          </div>
-
-          {/* Combobox untuk Menambah Sekolah Baru */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Combobox<School>
-                value={newSchoolId}
-                onChange={(value) => setNewSchoolId(value)}
-                onSearchChange={setSchoolSearch}
-                data={availableSchools}
-                isLoading={loadingSchools}
-                placeholder="Pilih Sekolah untuk ditambahkan"
-                getOptionLabel={(s) => s.name}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleAddSchool}
-              disabled={!newSchoolId}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-            >
-              Tambah
-            </button>
-          </div>
+          <Combobox
+            value={form.tryout_id}
+            onChange={(value) => setForm({ ...form, tryout_id: value })}
+            onSearchChange={setTryoutSearch}
+            onOpenRefetch={refetchTryout}
+            data={tryoutList}
+            isLoading={loadingTryout}
+            placeholder="Pilih Kategori Tryout"
+            getOptionLabel={(t) => t.title}
+          />
         </div>
 
-        {/* Pengawas */}
+        {/* Urutan 2: Tryout Induk / Tryout Parent (Opsional) */}
+        <div>
+          <Label>Tryout Induk / Tryout Parent (Opsional)</Label>
+          <div className="h-2" />
+          <Combobox<Test>
+            value={form.parent_id}
+            onChange={(value) => setForm({ ...form, parent_id: value })}
+            onSearchChange={setParentSearch}
+            onOpenRefetch={refetchParent}
+            data={parentList}
+            isLoading={loadingParent}
+            placeholder="Pilih Induk Tes"
+            getOptionLabel={(t) => t.title}
+          />
+        </div>
+
+        {/* Urutan 3: Konfigurasi Sekolah (Semua Sekolah vs Manual) */}
+        <div className="p-4 border rounded-lg bg-slate-50/50 space-y-4">
+          <div className="flex flex-col gap-2">
+            <Label className="font-bold">Cakupan Sekolah *</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={form.all_school === 1 ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setForm({ ...form, all_school: 1 })}
+              >
+                Semua Sekolah
+              </Button>
+              <Button
+                type="button"
+                variant={form.all_school === 0 ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setForm({ ...form, all_school: 0 })}
+              >
+                Manual (Pilih)
+              </Button>
+            </div>
+          </div>
+
+          {/* Skenario 1: MANUAL (all_school === 0) */}
+          {form.all_school === 0 && (
+            <div className="space-y-3 animate-in fade-in duration-300">
+              <Label className="text-xs">
+                Pilih Sekolah yang Dapat Mengakses
+              </Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Combobox<School>
+                    value={newSchoolId}
+                    onChange={(value) => setNewSchoolId(value)}
+                    onSearchChange={setSchoolSearch}
+                    data={availableSchools}
+                    isLoading={loadingSchools}
+                    placeholder="Tambah sekolah..."
+                    getOptionLabel={(s) => s.name}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddSchool}
+                  disabled={!newSchoolId}
+                >
+                  Tambah
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {form.school_id.map((id) => (
+                  <Badge key={id} variant="default" className="bg-sky-500">
+                    <SchoolIcon className="mr-1 h-3 w-3" />
+                    {schoolMap.get(id) ?? id}
+                    <X
+                      className="ml-1 h-3 w-3 cursor-pointer"
+                      onClick={() => handleRemoveSchool(id)}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Skenario 2: SEMUA SEKOLAH (all_school === 1) */}
+          {form.all_school === 1 && (
+            <div className="pt-2 border-t animate-in fade-in duration-300">
+              <Label className="text-xs text-destructive font-semibold">
+                Pilih Sekolah Tidak Boleh Akses (Kecualikan)
+              </Label>
+              <div className="h-2" />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Combobox<School>
+                    value={newExceptId}
+                    onChange={(value) => setNewExceptId(value)}
+                    onSearchChange={setSchoolSearch}
+                    data={availableExceptSchools}
+                    isLoading={loadingSchools}
+                    placeholder="Kecualikan sekolah..."
+                    getOptionLabel={(s) => s.name}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleAddExceptSchool}
+                  disabled={!newExceptId}
+                >
+                  Tambah
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {form.school_except_id.map((id) => (
+                  <Badge key={id} variant="destructive">
+                    <Ban className="mr-1 h-3 w-3" />
+                    {schoolMap.get(id) ?? id}
+                    <X
+                      className="ml-1 h-3 w-3 cursor-pointer"
+                      onClick={() => handleRemoveExceptSchool(id)}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div>
           <Label>Pengawas *</Label>
           <div className="h-2" />
@@ -326,38 +527,6 @@ export default function TryoutForm({
             placeholder="Pilih Pengawas"
             getOptionLabel={(u) => `${u.name} (${u.email})`}
           />
-        </div>
-
-        {/* 🆕 Tryout & Parent Test */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Tryout (Opsional)</Label>
-            <div className="h-2" />
-            <Combobox
-              value={form.tryout_id}
-              onChange={(value) => setForm({ ...form, tryout_id: value })}
-              onSearchChange={setTryoutSearch}
-              onOpenRefetch={refetchTryout}
-              data={tryoutList}
-              isLoading={loadingTryout}
-              placeholder="Pilih Tryout"
-              getOptionLabel={(t) => t.title}
-            />
-          </div>
-          <div>
-            <Label>Induk Tes (Opsional)</Label>
-            <div className="h-2" />
-            <Combobox<Test>
-              value={form.parent_id}
-              onChange={(value) => setForm({ ...form, parent_id: value })}
-              onSearchChange={setParentSearch}
-              onOpenRefetch={refetchParent}
-              data={parentList}
-              isLoading={loadingParent}
-              placeholder="Pilih Induk Tes"
-              getOptionLabel={(t) => t.title}
-            />
-          </div>
         </div>
 
         <div>
@@ -378,7 +547,6 @@ export default function TryoutForm({
           />
         </div>
 
-        {/* Timer Type & Score Type */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Timer Type</Label>
@@ -386,10 +554,7 @@ export default function TryoutForm({
             <Select
               value={form.timer_type}
               onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  timer_type: v as TimerType,
-                }))
+                setForm((prev) => ({ ...prev, timer_type: v as TimerType }))
               }
             >
               <SelectTrigger className="w-full">
@@ -408,10 +573,7 @@ export default function TryoutForm({
             <Select
               value={form.score_type}
               onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  score_type: v as ScoreType,
-                }))
+                setForm((prev) => ({ ...prev, score_type: v as ScoreType }))
               }
             >
               <SelectTrigger className="w-full">
@@ -429,9 +591,7 @@ export default function TryoutForm({
           <div>
             <Label>
               Total Time (detik){" "}
-              {form.timer_type === "per_test"
-                ? "*"
-                : "(diabaikan saat per category)"}
+              {form.timer_type === "per_test" ? "*" : "(diabaikan)"}
             </Label>
             <div className="h-2" />
             <Input
@@ -479,29 +639,6 @@ export default function TryoutForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Access Code (opsional)</Label>
-            <div className="h-2" />
-            <Input
-              value={form.code ?? ""}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Max Attempts (opsional)</Label>
-            <div className="h-2" />
-            <Input
-              type="number"
-              value={form.max_attempts ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, max_attempts: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        {/* type="date", kirim selalu sebagai YYYY-MM-DD */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
             <Label>Tanggal Mulai</Label>
             <div className="h-2" />
             <Input
@@ -510,7 +647,6 @@ export default function TryoutForm({
               onChange={(e) =>
                 setForm({ ...form, start_date: dateOnly(e.target.value) })
               }
-              // Wajib jika Score Type = IRT
               required={form.score_type === "irt"}
             />
           </div>
@@ -523,7 +659,6 @@ export default function TryoutForm({
               onChange={(e) =>
                 setForm({ ...form, end_date: dateOnly(e.target.value) })
               }
-              // Wajib jika Score Type = IRT
               required={form.score_type === "irt"}
             />
           </div>

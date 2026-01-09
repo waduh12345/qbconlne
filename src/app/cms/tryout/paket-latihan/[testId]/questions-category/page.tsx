@@ -1,4 +1,3 @@
-// app/(cms)/cms/tryout/paket-latihan/[testId]/questions-category/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -121,7 +120,6 @@ export default function TestCategoriesPage() {
 
   const validate = (): string | null => {
     if (!form.question_category_id) return "Kategori wajib dipilih.";
-    if (form.total_questions <= 0) return "Total pertanyaan harus > 0.";
     if (
       testDetail?.timer_type === "per_category" &&
       (!form.total_time || form.total_time <= 0)
@@ -362,40 +360,20 @@ export default function TestCategoriesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Total Pertanyaan *</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={showZeroAsEmpty(form.total_questions)}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        total_questions:
-                          e.target.value === "" ? 0 : Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Order *</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={showZeroAsEmpty(form.order)}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        order:
-                          e.target.value === "" ? 0 : Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Order *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={showZeroAsEmpty(form.order)}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      order: e.target.value === "" ? 0 : Number(e.target.value),
+                    })
+                  }
+                />
               </div>
             </div>
 

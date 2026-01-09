@@ -14,7 +14,7 @@ import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
 import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
 import { useGetMeQuery } from "@/services/auth.service";
-import type { Test } from "@/types/tryout/test";
+import type { Test, TestPayload } from "@/types/tryout/test";
 import type { Users } from "@/types/user";
 import type { School } from "@/types/master/school";
 import type { Tryout } from "@/services/tryout/sub-tryout.service";
@@ -60,44 +60,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Interface untuk baris data tabel, menyesuaikan response API
+// Interface untuk baris data tabel
 type TestRow = Test & {
   user_id?: number | null;
   pengawas_name?: string | null;
   schools?: School[];
-  // Tambahkan field ini untuk keamanan jika type Test belum update
   parent_id?: number | null;
   tryout_id?: number | null;
-};
-
-type TestPayload = {
-  school_id: number[];
-  title: string;
-  sub_title: string | null;
-  shuffle_questions: boolean | number;
-  timer_type: TimerType;
-  score_type: ScoreType;
-  total_time?: number;
-  start_date?: string;
-  end_date?: string;
-  slug?: string;
-  description?: string | null;
-  total_questions?: number;
-  pass_grade?: number;
-  assessment_type?: AssessmentType;
-  code?: string | null;
-  max_attempts?: string | null;
-  is_graded?: boolean;
-  is_explanation_released?: boolean;
-  user_id: number;
-  status: number;
-  parent_id?: number | null;
-  tryout_id?: number | null;
+  all_school?: number | boolean;
+  school_excepts?: School[]; // Tambahkan ini agar bisa diakses di tabel
 };
 
 const emptyForm: FormState = {
-  // ✅ PERBAIKAN: Cast array kosong ke number[] agar tidak dianggap never[]
   school_id: [] as number[],
+  school_except_id: [] as number[],
+  all_school: 1,
   title: "",
   sub_title: "",
   slug: "",
@@ -145,11 +122,11 @@ export default function TryoutPage() {
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [schoolSearch, setSchoolSearch] = useState("");
 
-  const [parentId, setParentId] = useState<number | null>(null); // Filter Induk
-  const [tryoutId, setTryoutId] = useState<number | null>(null); // Filter Tryout
-  const [isParentFilter, setIsParentFilter] = useState<string>("all"); // Filter Tipe (Induk/Sub/Semua)
+  const [parentId, setParentId] = useState<number | null>(null);
+  const [tryoutId, setTryoutId] = useState<number | null>(null);
+  const [isParentFilter, setIsParentFilter] = useState<string>("all");
 
-  // 🔹 Fetch Data Helper (Parent & Tryout) for Combobox Filters
+  // 🔹 Fetch Helper (Parent & Tryout)
   const [parentSearch, setParentSearch] = useState("");
   const { data: parentResp, refetch: refetchParentList } = useGetTestListQuery({
     page: 1,
@@ -175,7 +152,7 @@ export default function TryoutPage() {
   const isPengawas = roles.some((r) => r.name === "pengawas");
   const myId = me?.id ?? 0;
 
-  // 🔹 ambil data sekolah (untuk combobox filter)
+  // 🔹 ambil data sekolah
   const {
     data: schoolResp,
     isLoading: loadingSchools,
@@ -187,7 +164,7 @@ export default function TryoutPage() {
 
   const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
-  // 🔹 query utama list tryout
+  // 🔹 query utama
   const baseQuery = {
     page,
     paginate,
@@ -196,10 +173,9 @@ export default function TryoutPage() {
     orderBy: "tests.updated_at",
     orderDirection: "desc" as const,
     school_id: schoolId ?? undefined,
-    // 👇 Masukkan filter baru ke query
     parent_id: parentId ?? undefined,
     tryout_id: tryoutId ?? undefined,
-    isParent: isParentFilter === "parent" ? 1 : undefined, // Kirim 1 jika 'parent', undefined jika 'all'
+    isParent: isParentFilter === "parent" ? 1 : undefined,
   };
 
   const finalQuery =
@@ -234,13 +210,15 @@ export default function TryoutPage() {
   const [editing, setEditing] = useState<TestRow | null>(null);
   const [monitoringTest, setMonitoringTest] = useState<TestRow | null>(null);
 
-  // ✅ PERBAIKAN: Mapping data schools dari API ke school_id (array of number)
+  // ✅ Convert Row to Form (Initial)
   const toForm = (t: TestRow): FormState => {
-    // Ambil ID dari array schools jika ada
-    const schoolIds = t.schools?.map((s) => s.id) ?? [];
-
+    // Di sini kita hanya mapping data basic. Detail lengkap (termasuk excepts)
+    // akan diambil ulang di dalam component form via useGetTestByIdQuery.
     return {
-      school_id: schoolIds,
+      id: t.id, // Penting kirim ID agar form fetch detail
+      school_id: t.schools?.map((s) => s.id) ?? [],
+      school_except_id: [], // Placeholder, nanti diisi ulang di form
+      all_school: t.all_school ? 1 : 0,
       title: t.title,
       sub_title: t.sub_title ?? "",
       slug: t.slug ?? "",
@@ -267,7 +245,9 @@ export default function TryoutPage() {
 
   const toPayload = (f: FormState): TestPayload => {
     const payload: TestPayload = {
-      school_id: f.school_id,
+      all_school: f.all_school,
+      school_except_id: f.school_except_id,
+      school_id: f.all_school === 1 ? [] : f.school_id,
       title: f.title,
       sub_title: f.sub_title || null,
       shuffle_questions: f.shuffle_questions ? 1 : 0,
@@ -411,7 +391,6 @@ export default function TryoutPage() {
     [data]
   );
 
-  // ✅ PERBAIKAN: Hitung pagination info secara manual
   const fromEntry = data?.total === 0 ? 0 : (page - 1) * paginate + 1;
   const toEntry = Math.min(
     fromEntry + (data?.data?.length || 0) - 1,
@@ -541,7 +520,6 @@ export default function TryoutPage() {
 
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {/* ✅ PERBAIKAN: Gunakan hasil hitungan manual */}
                 Menampilkan {fromEntry} - {toEntry} dari {data?.total ?? 0} data
               </div>
               <div className="flex items-center gap-2">
@@ -627,8 +605,38 @@ export default function TryoutPage() {
                             </div>
                           </td>
                           <td className="p-3 min-w-[180px]">
-                            {/* Render list sekolah dari properti t.schools */}
-                            {t.schools && t.schools.length > 0 ? (
+                            {/* LOGIK TAMPILAN SEKOLAH */}
+                            {t.all_school ? (
+                              <div className="flex flex-col gap-1">
+                                <Badge
+                                  variant="default"
+                                  className="w-fit bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                  Semua Sekolah
+                                </Badge>
+                                {/* Cek jika ada sekolah yang dikecualikan */}
+                                {t.school_excepts &&
+                                  t.school_excepts.length > 0 && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      <span className="font-semibold text-red-500 block mb-1">
+                                        Kecuali:
+                                      </span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {t.school_excepts.map((s) => (
+                                          <Badge
+                                            key={s.id}
+                                            variant="outline"
+                                            className="text-[10px] text-red-500 border-red-200"
+                                          >
+                                            {s.name}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            ) : // Tampilan Manual
+                            t.schools && t.schools.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {t.schools.slice(0, 2).map((s) => (
                                   <Badge
@@ -770,7 +778,7 @@ export default function TryoutPage() {
 
             <TryoutForm
               key={editing ? editing.id : "new"}
-              initialSchools={editing?.schools ?? []}
+              // Removed initialSchools
               initial={
                 editing
                   ? toForm(editing)
