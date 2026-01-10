@@ -59,7 +59,8 @@ export default function TestCategoriesPage() {
   const router = useRouter();
 
   const [page, setPage] = useState<number>(1);
-  const [paginate, setPaginate] = useState<number>(10);
+  // Default paginate jadi 25 sesuai request
+  const [paginate, setPaginate] = useState<number>(25);
   const [search, setSearch] = useState<string>("");
 
   // detail test → untuk tahu timer_type
@@ -223,12 +224,13 @@ export default function TestCategoriesPage() {
               value={paginate}
               onChange={(e) => {
                 setPaginate(Number(e.target.value));
-                setPage(1);
+                setPage(1); // Reset ke halaman 1 saat jumlah row berubah
               }}
             >
-              <option value={10}>10</option>
-              <option value={15}>15</option>
               <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={0}>Semua</option>
             </select>
           </div>
           <div className="ml-auto w-full md:w-72 flex gap-2">
@@ -329,11 +331,14 @@ export default function TestCategoriesPage() {
           </table>
         </div>
 
-        <Pager
-          page={data?.current_page ?? 1}
-          lastPage={data?.last_page ?? 1}
-          onChange={setPage}
-        />
+        {/* Hanya tampilkan Pager jika paginate bukan 0 (Semua) */}
+        {paginate !== 0 && (
+          <Pager
+            page={data?.current_page ?? 1}
+            lastPage={data?.last_page ?? 1}
+            onChange={setPage}
+          />
+        )}
 
         {/* Modal */}
         <Dialog open={open} modal={false} onOpenChange={setOpen}>
