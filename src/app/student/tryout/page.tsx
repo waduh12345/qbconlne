@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FolderOpen,
-  BarChart3,
+  // BarChart3,
   Play,
   Loader2,
   Search,
@@ -14,6 +14,8 @@ import {
   Layers,
   ChevronRight,
   ArrowLeft,
+  NotebookPen,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,12 +64,12 @@ export default function TryoutListPage() {
   // History ongoing & completed
   const { data: ongoing } = useGetParticipantHistoryListQuery({
     page: 1,
-    paginate: 10,
+    paginate: 100, // Ambil cukup banyak untuk mapping
     is_ongoing: 1,
   });
   const { data: completed } = useGetParticipantHistoryListQuery({
     page: 1,
-    paginate: 10,
+    paginate: 100, // Ambil cukup banyak untuk mapping
     is_completed: 1,
   });
 
@@ -79,10 +81,16 @@ export default function TryoutListPage() {
     return out;
   }, [ongoing]);
 
-  const completedSet = useMemo(() => {
-    const s = new Set<number>();
-    (completed?.data ?? []).forEach((h) => s.add(h.test_id));
-    return s;
+  // Map Test ID -> Participant Test ID (History ID) untuk yang sudah selesai
+  const completedMap = useMemo(() => {
+    const out = new Map<number, number>();
+    (completed?.data ?? []).forEach((h) => {
+      // Kita ambil record terbaru jika ada duplikat, asumsi data dari API sudah sort by date desc/grade atau kita ambil yang pertama ditemukan
+      if (h.test_id && h.id && !out.has(h.test_id)) {
+        out.set(h.test_id, h.id);
+      }
+    });
+    return out;
   }, [completed]);
 
   const [generateTest, { isLoading: starting }] = useGenerateTestMutation();
@@ -271,9 +279,11 @@ export default function TryoutListPage() {
               const isParentBundle = !currentParentId && children.length > 0;
 
               // Logic untuk Single Test (bisa Parent tanpa anak, atau Child item)
-              const contId = ongoingMap.get(t.id);
-              const isContinuable = !!contId;
-              const isCompleted = completedSet.has(t.id);
+              const ongoingId = ongoingMap.get(t.id);
+              const completedId = completedMap.get(t.id);
+
+              const isContinuable = !!ongoingId;
+              const isCompleted = !!completedId;
 
               return (
                 <article
@@ -370,7 +380,7 @@ export default function TryoutListPage() {
                       <div className="grid grid-cols-2 gap-2">
                         {isContinuable ? (
                           <Button
-                            onClick={() => handleContinue(contId!)}
+                            onClick={() => handleContinue(ongoingId!)}
                             className="justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700"
                           >
                             <RotateCcw className="h-4 w-4" />
@@ -392,6 +402,8 @@ export default function TryoutListPage() {
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Memulai...
                               </>
+                            ) : isCompleted ? (
+                              <>Selesai</>
                             ) : (
                               <>
                                 <Play className="h-4 w-4" />
@@ -401,18 +413,27 @@ export default function TryoutListPage() {
                           </Button>
                         )}
 
-                        <Button
-                          variant="skyblue"
-                          className="justify-center gap-2"
-                          asChild
-                        >
-                          <Link
-                            href={`/student/tryout/rank-student?test_id=${t.id}`}
+                        {isCompleted ? (
+                          <Button
+                            variant="outline"
+                            className="justify-center gap-2 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-800"
+                            asChild
                           >
-                            <BarChart3 className="h-4 w-4" />
-                            Peringkat
-                          </Link>
-                        </Button>
+                            <Link href={`/student/tryout/score/${completedId}`}>
+                              <NotebookPen className="h-4 w-4" />
+                              Nilai
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="justify-center gap-2 opacity-50"
+                            disabled
+                          >
+                            <Trophy className="h-4 w-4" />
+                            Nilai
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

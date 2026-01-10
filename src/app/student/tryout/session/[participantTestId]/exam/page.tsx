@@ -33,7 +33,7 @@ import {
 import Link from "next/link";
 import Swal from "sweetalert2";
 import ExamGuard from "@/components/anti-cheat-guards";
-import SanitizedHtml from "@/components/sanitized-html";
+// import SanitizedHtml from "@/components/sanitized-html";
 import RichTextView from "@/components/ui/rich-text-view";
 
 /** ===== Util types (tanpa any) ===== */
@@ -724,37 +724,57 @@ function MCControl({
         return (
           <label
             key={o.option}
-            className="flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 hover:bg-zinc-50"
+            className={`group flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-all hover:bg-sky-50/50 ${
+              checked
+                ? "border-sky-500 bg-sky-50 ring-1 ring-sky-500"
+                : "border-zinc-200"
+            }`}
           >
-            <input
-              type={multiple ? "checkbox" : "radio"}
-              name={name}
-              className="mt-1"
-              checked={checked}
-              onChange={() => {
-                if (multiple) {
-                  apply(
-                    checked
-                      ? value.filter((v) => v !== o.option)
-                      : [...value, o.option]
-                  );
-                } else {
-                  apply([o.option]);
-                }
-              }}
-            />
-            <RichTextView html={o.text} />
+            <div className="flex h-6 items-center">
+              <input
+                type={multiple ? "checkbox" : "radio"}
+                name={name}
+                className={`h-5 w-5 accent-sky-600 ${
+                  multiple ? "rounded" : "rounded-full"
+                }`}
+                checked={checked}
+                onChange={() => {
+                  if (multiple) {
+                    apply(
+                      checked
+                        ? value.filter((v) => v !== o.option)
+                        : [...value, o.option]
+                    );
+                  } else {
+                    apply([o.option]);
+                  }
+                }}
+              />
+            </div>
+            {/* Opsi Label (A, B, C, dst) jika diperlukan bisa ditaruh disini, 
+                tapi biasanya text soal sudah mengandung prefix atau layout bersih tanpa prefix */}
+            <div className="w-full text-sm leading-relaxed text-zinc-800">
+              <RichTextView html={o.text} />
+            </div>
           </label>
         );
       })}
 
-      <Button
-        className="mt-2 rounded-xl bg-sky-600 hover:bg-sky-700"
-        onClick={() => onSubmit(multiple ? value.join(",") : value[0] ?? "")}
-        disabled={saving}
-      >
-        Simpan Jawaban
-      </Button>
+      <div className="flex justify-end pt-2">
+        <Button
+          className="rounded-xl bg-sky-600 hover:bg-sky-700"
+          onClick={() => onSubmit(multiple ? value.join(",") : value[0] ?? "")}
+          disabled={saving}
+        >
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
+            </>
+          ) : (
+            "Simpan Jawaban"
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -806,6 +826,9 @@ function CategorizedControl({
     accurate: boolean;
     not_accurate: boolean;
     point: number;
+    // Property label dari backend
+    accurate_label?: string;
+    not_accurate_label?: string;
   }[];
   initial: string;
   onSubmit: (value: string) => void | Promise<void>;
@@ -832,47 +855,96 @@ function CategorizedControl({
     });
   };
 
-  return (
-    <div className="space-y-3">
-      {options.map((o, i) => {
-        const name = `cat-${questionId}-${i}`;
-        return (
-          <div key={i} className="rounded-xl border p-3">
-            <SanitizedHtml
-              className="prose prose-sm max-w-none"
-              html={o.text}
-            />
-            <div className="mt-2 flex items-center gap-5">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name={name}
-                  checked={choices[i] === "accurate"}
-                  onChange={() => setAndSave(i, "accurate")}
-                />
-                Akurat
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name={name}
-                  checked={choices[i] === "not_accurate"}
-                  onChange={() => setAndSave(i, "not_accurate")}
-                />
-                Tidak Akurat
-              </label>
-            </div>
-          </div>
-        );
-      })}
+  // --- PERBAIKAN LOGIC LABEL ---
+  // Ambil label dari item pertama. Jika kosong, fallback ke "Benar"/"Salah"
+  const firstOpt = options[0];
+  const LABEL_TRUE = firstOpt?.accurate_label || "Benar";
+  const LABEL_FALSE = firstOpt?.not_accurate_label || "Salah";
 
-      <Button
-        className="rounded-xl bg-sky-600 hover:bg-sky-700"
-        onClick={() => onSubmit(choices.join(","))}
-        disabled={saving}
-      >
-        Simpan Jawaban
-      </Button>
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-xl border border-zinc-200 shadow-sm">
+        <table className="w-full min-w-[600px] text-left text-sm">
+          <thead className="bg-zinc-100 text-zinc-700">
+            <tr>
+              <th className="px-6 py-4 font-bold uppercase tracking-wider text-zinc-600">
+                Pernyataan
+              </th>
+              {/* Render Label Dinamis di Header */}
+              <th className="w-28 border-l border-zinc-200 px-4 py-4 text-center font-bold uppercase tracking-wider text-zinc-600">
+                {LABEL_TRUE}
+              </th>
+              <th className="w-28 border-l border-zinc-200 px-4 py-4 text-center font-bold uppercase tracking-wider text-zinc-600">
+                {LABEL_FALSE}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100 bg-white">
+            {options.map((o, i) => {
+              const name = `cat-${questionId}-${i}`;
+              const isAccurate = choices[i] === "accurate";
+              const isNotAccurate = choices[i] === "not_accurate";
+
+              return (
+                <tr
+                  key={i}
+                  className={`group transition-colors hover:bg-sky-50/30 ${
+                    isAccurate || isNotAccurate ? "bg-zinc-50/50" : ""
+                  }`}
+                >
+                  <td className="px-6 py-4 align-top leading-relaxed text-zinc-800">
+                    <RichTextView html={o.text} />
+                  </td>
+
+                  {/* Kolom KIRI (Sesuai LABEL_TRUE) */}
+                  <td className="border-l border-zinc-100 p-0 align-middle">
+                    <label className="flex h-full min-h-[60px] cursor-pointer items-center justify-center p-4 transition-colors hover:bg-sky-100/50">
+                      <input
+                        type="radio"
+                        name={name}
+                        checked={isAccurate}
+                        onChange={() => setAndSave(i, "accurate")}
+                        className="h-5 w-5 accent-emerald-600 transition-transform hover:scale-110 focus:ring-emerald-500"
+                        title={`Pilih ${LABEL_TRUE}`}
+                      />
+                    </label>
+                  </td>
+
+                  {/* Kolom KANAN (Sesuai LABEL_FALSE) */}
+                  <td className="border-l border-zinc-100 p-0 align-middle">
+                    <label className="flex h-full min-h-[60px] cursor-pointer items-center justify-center p-4 transition-colors hover:bg-rose-100/50">
+                      <input
+                        type="radio"
+                        name={name}
+                        checked={isNotAccurate}
+                        onChange={() => setAndSave(i, "not_accurate")}
+                        className="h-5 w-5 accent-rose-600 transition-transform hover:scale-110 focus:ring-rose-500"
+                        title={`Pilih ${LABEL_FALSE}`}
+                      />
+                    </label>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <Button
+          className="rounded-xl bg-sky-600 hover:bg-sky-700"
+          onClick={() => onSubmit(choices.join(","))}
+          disabled={saving}
+        >
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
+            </>
+          ) : (
+            "Simpan Jawaban"
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

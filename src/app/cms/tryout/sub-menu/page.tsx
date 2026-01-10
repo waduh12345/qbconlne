@@ -19,7 +19,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader  } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -126,7 +126,19 @@ export default function TryoutPage() {
       <main className="p-4 md:p-6 space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-xl font-bold">Sub Kategori Tryout</CardTitle>
+            {/* Toolbar */}
+            <div className="flex items-center gap-2 w-full">
+              <div className="relative w-full">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Cari judul tryout..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 <RefreshCw
@@ -140,20 +152,6 @@ export default function TryoutPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Toolbar */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Cari judul tryout..."
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
             {/* Table */}
             <div className="rounded-md border">
               <Table>

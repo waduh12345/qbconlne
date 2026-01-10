@@ -15,23 +15,19 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 // --- Service Import ---
-import {
-  useGetParticipantHistoryByIdQuery,
-} from "@/services/student/tryout.service"; // Pastikan path ini benar
+import { useGetParticipantHistoryByIdQuery } from "@/services/student/tryout.service";
 
-// --- DEFINISI TIPE BARU (Berdasarkan JSON Response Anda) ---
-
+// --- DEFINISI TIPE ---
 type QuestionDetails = {
   id: number;
-  type: string; // 'essay', 'multiple_choice', dll.
+  type: string;
   answer: string | null;
-  options: Array<{ option: string; text: string }> | null;
+  options: Array<{ option?: string; text: string }> | null; // option bersifat opsional
   question: string;
 };
 
-// Tipe untuk satu soal yang dijawab peserta
 type ApiParticipantQuestion = {
-  id: number; // Ini adalah participant_question ID (untuk grading)
+  id: number;
   participant_test_id: number;
   participant_test_question_category_id: number;
   question_id: number;
@@ -45,54 +41,41 @@ type ApiParticipantQuestion = {
   updated_at: string;
 };
 
-
-// Tipe untuk detail tes dari JSON
 type ApiTestDetails = {
   id: number;
   slug: string;
   title: string;
   sub_title: string;
-  // ... field lain jika ada
 };
 
-
-// --- Tipe Internal Komponen ---
-
-// Tipe yang sudah diproses untuk tampilan Kategori
 type GroupedCategory = {
-  id: number; // participant_category_id
+  id: number;
   name: string;
   code: string;
   end_date: string | null;
-  participant_questions: ApiParticipantQuestion[]; // Gunakan tipe yang sudah benar
+  participant_questions: ApiParticipantQuestion[];
 };
 
-// Tipe untuk info peserta di header modal
 type ParticipantInfo = {
   participant_name: string;
   test_details: ApiTestDetails;
   start_date: string;
 };
 
-// --- Props Komponen Utama ---
 type ParticipantHistoryDetailPGProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   participantTestId: number | null;
-  testId: number | null; // testId sepertinya tidak digunakan untuk fetch, tapi ada di props
+  testId: number | null;
 };
-
 
 export function ParticipantHistoryDetailPG({
   open,
   onOpenChange,
   participantTestId,
 }: ParticipantHistoryDetailPGProps) {
-  // State untuk modal grading
   const shouldFetch = open && typeof participantTestId === "number";
 
-  // --- Memanggil Hook RTK Query ---
-  // Tipe `rawData` sekarang adalah `ApiParticipantHistoryItem` (berkat transformResponse di service)
   const {
     data: rawData,
     isLoading,
@@ -102,15 +85,11 @@ export function ParticipantHistoryDetailPG({
     skip: !shouldFetch,
   });
 
-  // --- [PERBAIKAN UTAMA] Pemrosesan Data (useMemo) ---
   const { categories, participantInfo } = useMemo(() => {
-    // Jika tidak ada data (rawData adalah objek, BUKAN {data: []})
     if (!rawData) {
       return { categories: [], participantInfo: null };
     }
 
-    // `rawData` adalah objek `ApiParticipantHistoryItem`
-    // Ekstrak info peserta
     const pInfo: ParticipantInfo = {
       participant_name:
         rawData.participant_name || `User ID ${rawData.user_id}`,
@@ -118,20 +97,16 @@ export function ParticipantHistoryDetailPG({
         ...rawData.test_details,
         sub_title: rawData.test_details.sub_title ?? "",
       },
-      start_date: rawData.start_date ?? "", // pastikan selalu string
+      start_date: rawData.start_date ?? "",
     };
 
-    // Ekstrak dan proses kategori
     const groupedCategories: GroupedCategory[] = (
       rawData.participant_question_categories || []
     ).map((cat) => ({
       id: cat.id,
-      name:
-        cat.question_category_details?.name || `Kategori #${cat.id}`,
-      code:
-        cat.question_category_details?.code || `CAT-${cat.id}`,
+      name: cat.question_category_details?.name || `Kategori #${cat.id}`,
+      code: cat.question_category_details?.code || `CAT-${cat.id}`,
       end_date: cat.end_date,
-      // `participant_questions` sudah dalam format yang benar (ApiParticipantQuestion[])
       participant_questions: cat.participant_questions || [],
     }));
 
@@ -139,15 +114,17 @@ export function ParticipantHistoryDetailPG({
       categories: groupedCategories,
       participantInfo: pInfo,
     };
-  }, [rawData]); // Dependensi hanya pada rawData
+  }, [rawData]);
 
-  // Judul modal
   const title =
     participantInfo?.test_details?.title || "Detail Pengerjaan Peserta";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[80vh] flex-col gap-4 p-0" style={{ maxWidth: "1000px" }}>
+      <DialogContent
+        className="flex h-[80vh] flex-col gap-4 p-0"
+        style={{ maxWidth: "1000px" }}
+      >
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle className="text-lg">{title}</DialogTitle>
           <DialogDescription className="text-xs">
@@ -159,9 +136,12 @@ export function ParticipantHistoryDetailPG({
                 </span>{" "}
                 • Mulai:{" "}
                 {participantInfo.start_date
-                  ? new Date(participantInfo.start_date).toLocaleString("id-ID", {
-                      timeZone: "Asia/Jakarta",
-                    })
+                  ? new Date(participantInfo.start_date).toLocaleString(
+                      "id-ID",
+                      {
+                        timeZone: "Asia/Jakarta",
+                      }
+                    )
                   : "-"}{" "}
               </>
             ) : (
@@ -191,7 +171,6 @@ export function ParticipantHistoryDetailPG({
             <ScrollArea className="h-full px-6 py-4">
               <div className="space-y-4">
                 {categories.map((cat) => (
-                  // Loop dari categories yang sudah diproses
                   <div
                     key={cat.id}
                     className="rounded-xl border bg-muted/20 p-4"
@@ -201,13 +180,9 @@ export function ParticipantHistoryDetailPG({
                       <Badge variant="outline">{cat.code}</Badge>
                     </div>
 
-                    {/* daftar soal */}
                     <div className="space-y-3">
                       {(cat.participant_questions ?? []).map((q) => (
-                        <QuestionItem
-                          key={q.id}
-                          question={q}
-                        />
+                        <QuestionItem key={q.id} question={q} />
                       ))}
                     </div>
                   </div>
@@ -229,21 +204,17 @@ export function ParticipantHistoryDetailPG({
 
 // --- Komponen Pembantu (QuestionItem) ---
 
-function QuestionItem({
-  question,
-}: {
-  question: ApiParticipantQuestion; // Ganti tipe ke ApiParticipantQuestion
-}) {
+function QuestionItem({ question }: { question: ApiParticipantQuestion }) {
   const qd = question.question_details;
   if (!qd) {
-    // Safety check jika question_details tidak ada
     return (
       <div className="rounded-lg bg-red-100 p-3 ring-1 ring-red-300 text-red-700 text-xs">
-        Data soal (question_details) tidak ditemukan untuk soal ID: {question.id}
+        Data soal (question_details) tidak ditemukan untuk soal ID:{" "}
+        {question.id}
       </div>
     );
   }
-  
+
   const type: string = qd.type;
   const userAns = question.user_answer;
   const isCorrect = question.is_correct;
@@ -252,6 +223,7 @@ function QuestionItem({
   return (
     <div className="rounded-lg bg-white/70 p-3 ring-1 ring-muted/40">
       <div className="mb-2 flex items-start justify-between gap-4">
+        {/* Render Pertanyaan dengan HTML */}
         <p className="text-sm font-medium leading-relaxed">
           <span dangerouslySetInnerHTML={{ __html: qd.question }} />
         </p>
@@ -268,7 +240,12 @@ function QuestionItem({
           Jawaban Peserta:
         </span>
         <div className="p-2 border rounded-md bg-gray-50 max-h-32 overflow-y-auto whitespace-pre-wrap">
-          {userAns && userAns.trim() !== "" ? userAns : "— (Tidak menjawab)"}
+          {/* Untuk PG, render HTML jika jawaban mengandung tag, atau text biasa */}
+          {userAns && userAns.trim() !== "" ? (
+            <span dangerouslySetInnerHTML={{ __html: userAns }} />
+          ) : (
+            "— (Tidak menjawab)"
+          )}
         </div>
       </div>
 
@@ -276,88 +253,90 @@ function QuestionItem({
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
         {type === "essay" ? (
           <>
-        <span className="text-muted-foreground">Status Nilai:</span>
-        <Badge variant={isGraded ? "default" : "destructive"}>
-          {isGraded ? "SUDAH DINILAI" : "BELUM DINILAI"}
-        </Badge>
-        {isGraded && (
-          <span className="text-sm font-bold text-primary">
-            Nilai: {question.point ?? 0}
-          </span>
-        )}
+            <span className="text-muted-foreground">Status Nilai:</span>
+            <Badge variant={isGraded ? "default" : "destructive"}>
+              {isGraded ? "SUDAH DINILAI" : "BELUM DINILAI"}
+            </Badge>
+            {isGraded && (
+              <span className="text-sm font-bold text-primary">
+                Nilai: {question.point ?? 0}
+              </span>
+            )}
           </>
         ) : (
           <>
-        <span className="text-muted-foreground">Status:</span>
-        <Badge
-          variant={
-            isCorrect ||
-            (qd.answer &&
-              userAns &&
-              qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
-              ? "default"
-              : isCorrect === false
-              ? "destructive"
-              : "secondary"
-          }
-          className={
-            isCorrect ||
-            (qd.answer &&
-              userAns &&
-              qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
-              ? "bg-emerald-500 hover:bg-emerald-500"
-              : ""
-          }
-        >
-          {isCorrect ||
-          (qd.answer &&
-            userAns &&
-            qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
-            ? "BENAR"
-            : isCorrect === false
-            ? "SALAH"
-            : "—"}
-        </Badge>
-        {isCorrect === false && (
-          <span className="text-xs text-muted-foreground">
-            Kunci: {qd.answer ?? "—"}
-            {qd.answer && userAns && (
-          <>
-            {" "}
-            {/* Tampilkan perbandingan jika jawaban peserta beda hanya di case */}
-            {qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase()
-              ? "(Jawaban benar, hanya berbeda huruf besar/kecil)"
-              : ""}
-          </>
+            <span className="text-muted-foreground">Status:</span>
+            <Badge
+              variant={
+                isCorrect ||
+                (qd.answer &&
+                  userAns &&
+                  qd.answer.trim().toLowerCase() ===
+                    userAns.trim().toLowerCase())
+                  ? "default"
+                  : isCorrect === false
+                  ? "destructive"
+                  : "secondary"
+              }
+              className={
+                isCorrect ||
+                (qd.answer &&
+                  userAns &&
+                  qd.answer.trim().toLowerCase() ===
+                    userAns.trim().toLowerCase())
+                  ? "bg-emerald-500 hover:bg-emerald-500"
+                  : ""
+              }
+            >
+              {isCorrect ||
+              (qd.answer &&
+                userAns &&
+                qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
+                ? "BENAR"
+                : isCorrect === false
+                ? "SALAH"
+                : "—"}
+            </Badge>
+            {isCorrect === false && (
+              <span className="text-xs text-muted-foreground">
+                Kunci: {qd.answer ?? "—"}
+                {qd.answer && userAns && (
+                  <>
+                    {" "}
+                    {qd.answer.trim().toLowerCase() ===
+                    userAns.trim().toLowerCase()
+                      ? "(Jawaban benar, hanya berbeda huruf besar/kecil)"
+                      : ""}
+                  </>
+                )}
+              </span>
             )}
-          </span>
-        )}
           </>
         )}
       </div>
 
-      {/* Opsi untuk Multiple Choice (Jika diperlukan) */}
+      {/* Opsi untuk Multiple Choice */}
       {qd.type === "multiple_choice" ||
       qd.type === "true_false" ||
       qd.type === "multiple_choice_multiple_answer" ? (
         <div className="mt-2 flex flex-wrap gap-2">
-          {(qd.options ?? []).map((opt: { option: string; text: string }) => {
+          {(qd.options ?? []).map((opt: { option?: string; text: string }) => {
             const isUserPick = userAns
               ? userAns
                   .split(",")
                   .map((s) => s.trim())
-                  .includes(opt.option)
+                  .includes(opt.option || "")
               : false;
             const isKey =
               typeof qd.answer === "string" &&
               qd.answer
                 .split(",")
                 .map((s) => s.trim())
-                .includes(opt.option);
+                .includes(opt.option || "");
 
             return (
               <Badge
-                key={opt.option}
+                key={opt.option || opt.text}
                 variant={isUserPick ? "default" : "outline"}
                 className={
                   isKey
@@ -365,7 +344,14 @@ function QuestionItem({
                     : ""
                 }
               >
-                {opt.text}
+                {/* TAMPILKAN LABEL OPSI (A, B, C...) JIKA ADA */}
+                {opt.option && (
+                  <span className="mr-1 font-bold uppercase">
+                    {opt.option}.
+                  </span>
+                )}
+                {/* Perbaikan: Render HTML didalam Option */}
+                <span dangerouslySetInnerHTML={{ __html: opt.text }} />
               </Badge>
             );
           })}
