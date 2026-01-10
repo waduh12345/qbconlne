@@ -1,6 +1,7 @@
 // src/app/student/tryout/score/[id]/page.tsx
 "use client";
 
+import { use } from "react"; // IMPORT PENTING: Untuk unwrap params di Next.js 15
 import { useGetParticipantHistoryByIdQuery } from "@/services/student/tryout.service";
 import {
   ArrowLeft,
@@ -11,7 +12,7 @@ import {
   Loader2,
   Trophy,
   Layers,
-  AlertCircle, // Icon baru untuk partial
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,11 +25,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type {
-  ParticipantAnswer,
-  // Pastikan MCOption di type definition punya property 'point'
-  MCOption,
-} from "@/types/student/tryout";
+import type { ParticipantAnswer, MCOption } from "@/types/student/tryout";
 import { cn } from "@/lib/utils";
 
 // --- 1. DEFINISI TIPE YANG LEBIH KETAT (NO ANY) ---
@@ -49,7 +46,7 @@ type QuestionDetailsMultipleChoice = {
   answer: string;
   explanation?: string;
   total_point: number;
-  options: MCOption[]; // Pastikan MCOption punya { option: string; text: string; point: number; }
+  options: MCOption[];
 };
 
 type QuestionDetailsCategorized = {
@@ -92,7 +89,7 @@ const getOptionLabel = (index: number, explicitOption?: string) => {
   return String.fromCharCode(65 + index); // 65 = 'A'
 };
 
-// --- Sub-Component: Multiple Choice Normal (DIPERBAIKI) ---
+// --- Sub-Component: Multiple Choice Normal ---
 const MultipleChoiceReview = ({
   options,
   userAnswer,
@@ -121,24 +118,20 @@ const MultipleChoiceReview = ({
       {options.map((opt, i) => {
         const label = getOptionLabel(i, opt.option);
         const optionKey = label.toLowerCase();
-        // Normalisasi kunci opsi
         const rawOptionKey = opt.option ? opt.option.toLowerCase() : optionKey;
 
         const isSelected = userAnswerList.includes(rawOptionKey);
         const isKey = correctAnswerList.includes(rawOptionKey);
 
-        // LOGIC BARU: Cek Point
         const optionPoint = opt.point || 0;
         const isPartialCorrect = isSelected && !isKey && optionPoint > 0;
 
-        // Default Style (Netral)
         let containerClass = "border-zinc-200 bg-white hover:bg-zinc-50";
         let badgeClass = "border-zinc-300 bg-zinc-50 text-zinc-500";
         let indicatorIcon = null;
         let statusLabel = null;
 
         if (isSelected && isKey) {
-          // --- KASUS 1: BENAR SEMPURNA (User pilih kunci) ---
           containerClass =
             "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500";
           badgeClass = "border-emerald-500 bg-emerald-100 text-emerald-700";
@@ -149,7 +142,6 @@ const MultipleChoiceReview = ({
             </span>
           );
         } else if (isPartialCorrect) {
-          // --- KASUS 2: PARSIAL BENAR (User pilih opsi berpoin tapi bukan kunci utama) ---
           containerClass =
             "border-yellow-500 bg-yellow-50 ring-1 ring-yellow-500";
           badgeClass = "border-yellow-500 bg-yellow-100 text-yellow-700";
@@ -160,7 +152,6 @@ const MultipleChoiceReview = ({
             </span>
           );
         } else if (isSelected && !isKey) {
-          // --- KASUS 3: SALAH MUTLAK (User pilih salah, poin 0) ---
           containerClass = "border-rose-500 bg-rose-50 ring-1 ring-rose-500";
           badgeClass = "border-rose-500 bg-rose-100 text-rose-700";
           indicatorIcon = <XCircle className="h-5 w-5 text-rose-600" />;
@@ -170,7 +161,6 @@ const MultipleChoiceReview = ({
             </span>
           );
         } else if (!isSelected && isKey) {
-          // --- KASUS 4: KUNCI YANG TERLEWAT ---
           containerClass = "border-emerald-300 bg-emerald-50/40 border-dashed";
           badgeClass = "border-emerald-300 bg-emerald-100 text-emerald-700";
           indicatorIcon = (
@@ -263,7 +253,7 @@ const CategorizedReview = ({
 
             <div className="col-span-3 md:col-span-2 flex flex-col items-center justify-center">
               <Badge
-                variant={isUserCorrect ? "default" : "destructive"} // Ganti variant sesuai design system
+                variant={isUserCorrect ? "default" : "destructive"}
                 className={cn(
                   "whitespace-nowrap shadow-none",
                   isUserCorrect
@@ -290,7 +280,7 @@ const CategorizedReview = ({
   );
 };
 
-// --- Question Item Wrapper (DIPERBAIKI HEADERNYA) ---
+// --- Question Item Wrapper ---
 const QuestionReviewItem = ({
   answerData,
   index,
@@ -298,12 +288,10 @@ const QuestionReviewItem = ({
   answerData: ParticipantAnswer;
   index: number;
 }) => {
-  // Casting aman ke Union Type
   const questionDetails = answerData.question_details as QuestionDetailsVariant;
   const { user_answer, is_correct, point } = answerData;
   const type = questionDetails.type;
 
-  // Logic Header Display
   let displayUserAnswer = "-";
   let displayCorrectKey = "-";
 
@@ -313,7 +301,6 @@ const QuestionReviewItem = ({
     type === "multiple_choice_multiple_answer"
   ) {
     displayUserAnswer = user_answer ? user_answer.toUpperCase() : "-";
-    // TypeScript sekarang tahu questionDetails punya properti 'answer' di blok if ini
     displayCorrectKey = questionDetails.answer
       ? questionDetails.answer.toUpperCase()
       : "-";
@@ -322,8 +309,6 @@ const QuestionReviewItem = ({
     displayCorrectKey = "Lihat Detail";
   }
 
-  // LOGIC STATUS BADGE UTAMA
-  // Jika poin > 0 tapi is_correct false, itu PARSIAL
   const currentPoint = point ?? 0;
   const isPartial = currentPoint > 0 && !is_correct;
 
@@ -353,7 +338,6 @@ const QuestionReviewItem = ({
                     <CheckCircle2 className="mr-1 h-3 w-3" /> Benar
                   </Badge>
                 ) : isPartial ? (
-                  // STATE PARSIAL DI HEADER
                   <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-yellow-200 shadow-none">
                     <AlertCircle className="mr-1 h-3 w-3" /> Parsial
                   </Badge>
@@ -364,7 +348,6 @@ const QuestionReviewItem = ({
                 )}
               </div>
 
-              {/* Summary Jawaban Singkat */}
               {(type === "multiple_choice" ||
                 type === "true_false" ||
                 type === "multiple_choice_multiple_answer") && (
@@ -417,14 +400,10 @@ const QuestionReviewItem = ({
           dangerouslySetInnerHTML={{ __html: questionDetails.question }}
         />
 
-        {/* --- RENDER OPTIONS TANPA ANY --- */}
-
-        {/* Type Guard untuk Multiple Choice */}
         {(type === "multiple_choice" ||
           type === "true_false" ||
           type === "multiple_choice_multiple_answer") && (
           <MultipleChoiceReview
-            // TypeScript otomatis tahu options di sini adalah MCOption[]
             options={(questionDetails as QuestionDetailsMultipleChoice).options}
             userAnswer={user_answer}
             correctAnswer={
@@ -433,7 +412,6 @@ const QuestionReviewItem = ({
           />
         )}
 
-        {/* Type Guard untuk Categorized */}
         {type === "multiple_choice_multiple_category" && (
           <CategorizedReview
             options={(questionDetails as QuestionDetailsCategorized).options}
@@ -441,7 +419,6 @@ const QuestionReviewItem = ({
           />
         )}
 
-        {/* Essay */}
         {type === "essay" && (
           <div className="mt-6">
             <h4 className="mb-2 text-sm font-medium text-zinc-700">
@@ -457,7 +434,6 @@ const QuestionReviewItem = ({
           </div>
         )}
 
-        {/* --- Accordion Pembahasan --- */}
         <div className="mt-8">
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="explanation" className="border-none">
@@ -468,7 +444,6 @@ const QuestionReviewItem = ({
                 </div>
               </AccordionTrigger>
               <AccordionContent className="mt-2 rounded-lg border border-sky-100 bg-white p-5 text-sm leading-relaxed text-zinc-700 shadow-sm">
-                {/* Tampilkan kunci jawaban di accordion jika tipe memungkinkan */}
                 {type !== "multiple_choice_multiple_category" &&
                   type !== "essay" && (
                     <div className="mb-4 rounded-md bg-emerald-50 p-3 border border-emerald-100 text-emerald-800 font-medium">
@@ -509,10 +484,14 @@ const QuestionReviewItem = ({
 export default function StudentTryoutScorePage({
   params,
 }: {
-  params: { id: string };
+  // PERBAIKAN DI SINI: params adalah Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const participantTestId = Number(params.id);
+
+  // PERBAIKAN DI SINI: Gunakan 'use' untuk unwrap promise
+  const { id } = use(params);
+  const participantTestId = Number(id);
 
   const {
     data: history,
