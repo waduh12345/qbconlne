@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FolderOpen,
@@ -61,17 +61,45 @@ export default function TryoutListPage() {
     is_active: 1,
   });
 
-  // History ongoing & completed
-  const { data: ongoing } = useGetParticipantHistoryListQuery({
+  // History ongoing & completed - dengan refetchOnMountOrArgChange untuk auto refresh
+  const { data: ongoing, refetch: refetchOngoing } = useGetParticipantHistoryListQuery({
     page: 1,
     paginate: 100, // Ambil cukup banyak untuk mapping
     is_ongoing: 1,
-  });
-  const { data: completed } = useGetParticipantHistoryListQuery({
+  }, { refetchOnMountOrArgChange: true });
+  
+  const { data: completed, refetch: refetchCompleted } = useGetParticipantHistoryListQuery({
     page: 1,
     paginate: 100, // Ambil cukup banyak untuk mapping
     is_completed: 1,
-  });
+  }, { refetchOnMountOrArgChange: true });
+
+  // Fungsi untuk refresh data
+  const refreshHistoryData = useCallback(() => {
+    refetchOngoing();
+    refetchCompleted();
+  }, [refetchOngoing, refetchCompleted]);
+
+  // Auto-refetch saat halaman mendapat fokus kembali (setelah selesai ujian)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshHistoryData();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshHistoryData();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [refreshHistoryData]);
 
   const ongoingMap = useMemo(() => {
     const out = new Map<number, number>();
