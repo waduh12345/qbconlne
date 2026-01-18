@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "suneditor/dist/css/suneditor.min.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { ActiveThemeProvider } from "@/components/active-theme";
+// import { ThemeProvider } from "@/components/theme-provider";
+// import { ActiveThemeProvider } from "@/components/active-theme";
 import { cookies } from "next/headers";
 import { cn } from "@/lib/utils";
 import { fontVariables } from "@/lib/fonts";
@@ -37,23 +37,24 @@ export default async function RootLayout({
           "bg-background overscroll-none font-sans antialiased",
           activeThemeValue ? `theme-${activeThemeValue}` : "",
           isScaled ? "theme-scaled" : "",
-          fontVariables
+          fontVariables,
         )}
       >
         <ReduxProvider>
-          <ThemeProvider
+          {/* <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
-          >
-            <ClientAuthGuard
-              excludedRoutes={["/auth", "/auth/login", "/public", "/"]}
-              excludedFetchPrefixes={["/api/auth/", "/auth/"]}
-              loginPath="/auth/login"
-            />
-            <ActiveThemeProvider>{children}</ActiveThemeProvider>
-          </ThemeProvider>
+          > */}
+          <ClientAuthGuard
+            excludedRoutes={["/auth", "/auth/login", "/public", "/"]}
+            excludedFetchPrefixes={["/api/auth/", "/auth/"]}
+            loginPath="/auth/login"
+          />
+          {children}
+          {/* <ActiveThemeProvider></ActiveThemeProvider> */}
+          {/* </ThemeProvider> */}
         </ReduxProvider>
       </body>
     </html>

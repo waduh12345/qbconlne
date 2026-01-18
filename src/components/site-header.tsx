@@ -1,8 +1,8 @@
 'use client'
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { ModeToggle } from "./mode-toggle"
-import { ThemeSelector } from "./theme-selector"
+// import { ModeToggle } from "./mode-toggle"
+// import { ThemeSelector } from "./theme-selector"
 import { useGetNotificationsQuery } from "@/services/notification.service";
 
 
@@ -42,8 +42,8 @@ export function SiteHeader({ title }: { title: string }) {
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
             )}
           </div>
-          <ThemeSelector />
-          <ModeToggle />
+          {/* <ThemeSelector /> */}
+          {/* <ModeToggle /> */}
         </div>
       </div>
     </header>

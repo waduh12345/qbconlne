@@ -395,7 +395,25 @@ export default function TryoutForm({
           <div className="h-2" />
           <Combobox<Test>
             value={form.parent_id}
-            onChange={(value) => setForm({ ...form, parent_id: value })}
+            onChange={(value) => {
+              const selectedParent = parentList.find((p) => p.id === value);
+
+              setForm((prev) => ({
+                ...prev,
+                parent_id: value,
+                start_date: selectedParent
+                  ? dateOnly(selectedParent.start_date)
+                  : prev.start_date,
+                end_date: selectedParent
+                  ? dateOnly(selectedParent.end_date)
+                  : prev.end_date,
+                status: selectedParent
+                  ? selectedParent.status
+                    ? 1
+                    : 0
+                  : prev.status,
+              }));
+            }}
             onSearchChange={setParentSearch}
             onOpenRefetch={refetchParent}
             data={parentList}
@@ -637,32 +655,34 @@ export default function TryoutForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Tanggal Mulai</Label>
-            <div className="h-2" />
-            <Input
-              type="date"
-              value={form.start_date || ""}
-              onChange={(e) =>
-                setForm({ ...form, start_date: dateOnly(e.target.value) })
-              }
-              required={form.score_type === "irt"}
-            />
+        {!form.parent_id && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Tanggal Mulai</Label>
+              <div className="h-2" />
+              <Input
+                type="date"
+                value={form.start_date || ""}
+                onChange={(e) =>
+                  setForm({ ...form, start_date: dateOnly(e.target.value) })
+                }
+                required={form.score_type === "irt"}
+              />
+            </div>
+            <div>
+              <Label>Tanggal Selesai</Label>
+              <div className="h-2" />
+              <Input
+                type="date"
+                value={form.end_date || ""}
+                onChange={(e) =>
+                  setForm({ ...form, end_date: dateOnly(e.target.value) })
+                }
+                required={form.score_type === "irt"}
+              />
+            </div>
           </div>
-          <div>
-            <Label>Tanggal Selesai</Label>
-            <div className="h-2" />
-            <Input
-              type="date"
-              value={form.end_date || ""}
-              onChange={(e) =>
-                setForm({ ...form, end_date: dateOnly(e.target.value) })
-              }
-              required={form.score_type === "irt"}
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Kanan: Rich Text */}
@@ -691,14 +711,16 @@ export default function TryoutForm({
             }}
           />
         </div>
-        <div className="flex items-center gap-3 mt-4">
-          <Switch
-            checked={!!form.status}
-            onCheckedChange={(v) => setForm({ ...form, status: v ? 1 : 0 })}
-            id="status-switch"
-          />
-          <Label htmlFor="status-switch">Status aktif</Label>
-        </div>
+        {!form.parent_id && (
+          <div className="flex items-center gap-3 mt-4">
+            <Switch
+              checked={!!form.status}
+              onCheckedChange={(v) => setForm({ ...form, status: v ? 1 : 0 })}
+              id="status-switch"
+            />
+            <Label htmlFor="status-switch">Status aktif</Label>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
