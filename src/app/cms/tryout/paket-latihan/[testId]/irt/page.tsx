@@ -23,14 +23,30 @@ export default function IRTEvalPage() {
 
   const start = async () => {
     try {
+      // First, fetch/refetch the test IRT data
+      await refetch();
+      
+      // Then, compute the IRT
       await compute({ test_id: testId, payload: {} }).unwrap();
+      
       await Swal.fire({
         icon: "success",
         title: "Penilaian IRT dimulai / diperbarui",
       });
+      
+      // Refetch to get updated data
       refetch();
     } catch (e) {
-      await Swal.fire({ icon: "error", title: "Gagal", text: String(e) });
+      // Extract error message properly from RTK Query error
+      const errorMessage =
+        (e as { data?: { message?: string } })?.data?.message ??
+        (e instanceof Error ? e.message : "Gagal memulai penilaian IRT");
+      
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: errorMessage,
+      });
     }
   };
 

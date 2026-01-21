@@ -11,7 +11,6 @@ import {
   HelpCircle,
   Loader2,
   Trophy,
-  Layers,
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -526,13 +525,34 @@ export default function StudentTryoutScorePage({
 
   const {
     test_details,
-    grade,
-    is_passed,
     created_at,
     participant_question_categories,
   } = history;
 
   const categories = participant_question_categories ?? [];
+
+  // Hitung total soal benar dan salah dari semua kategori
+  const totalStats = categories.reduce(
+    (acc, cat) => {
+      const questions = (cat.participant_questions ?? []) as ParticipantAnswer[];
+      questions.forEach((q) => {
+        acc.total += 1;
+        if (q.is_correct) {
+          acc.correct += 1;
+        } else {
+          acc.wrong += 1;
+        }
+      });
+      return acc;
+    },
+    { total: 0, correct: 0, wrong: 0 }
+  );
+
+  // Hitung nilai persentase per 100
+  const calculatedGrade =
+    totalStats.total > 0
+      ? Math.round((totalStats.correct / totalStats.total) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen space-y-8 bg-zinc-50/30 pb-20">
@@ -568,7 +588,7 @@ export default function StudentTryoutScorePage({
                 <p className="text-xs font-medium text-sky-100 uppercase tracking-wider">
                   Nilai Akhir
                 </p>
-                <p className="text-3xl font-bold">{grade}</p>
+                <p className="text-3xl font-bold">{calculatedGrade}</p>
               </div>
             </div>
           </div>
@@ -579,24 +599,28 @@ export default function StudentTryoutScorePage({
       <main className="mx-auto max-w-5xl px-4 lg:px-0 mt-4 relative z-10">
         {/* Info Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
-          <Card className="border-l-4 border-l-sky-500 shadow-sm">
+          <Card className="border-l-4 border-l-emerald-500 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-zinc-500">
-                Status Kelulusan
+                Jawaban Benar
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {is_passed ? (
-                <div className="flex items-center gap-2 text-emerald-600 font-bold text-lg">
-                  <CheckCircle2 className="h-5 w-5" /> Lulus
-                </div>
-              ) : is_passed === false ? (
-                <div className="flex items-center gap-2 text-rose-600 font-bold text-lg">
-                  <XCircle className="h-5 w-5" /> Tidak Lulus
-                </div>
-              ) : (
-                <span className="text-zinc-700 font-semibold">-</span>
-              )}
+              <div className="flex items-center gap-2 text-emerald-600 font-bold text-lg">
+                <CheckCircle2 className="h-5 w-5" /> {totalStats.correct} Soal
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-rose-500 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-zinc-500">
+                Jawaban Salah
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-rose-600 font-bold text-lg">
+                <XCircle className="h-5 w-5" /> {totalStats.wrong} Soal
+              </div>
             </CardContent>
           </Card>
           <Card className="shadow-sm">
@@ -608,18 +632,6 @@ export default function StudentTryoutScorePage({
             <CardContent>
               <div className="font-semibold text-zinc-800">
                 {formatDate(created_at)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-500 flex items-center gap-2">
-                <Layers className="h-4 w-4" /> Total Kategori
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="font-semibold text-zinc-800">
-                {categories.length} Sub-test
               </div>
             </CardContent>
           </Card>
@@ -657,7 +669,7 @@ export default function StudentTryoutScorePage({
                       </p>
                     </div>
                     <Badge variant="secondary" className="text-lg px-4 py-1">
-                      Nilai: {cat.grade}
+                      Point: {cat.grade}
                     </Badge>
                   </div>
                   <div>
