@@ -116,6 +116,12 @@ export type TestDetails = {
   is_explanation_released: boolean;
   created_at: string;
   updated_at: string;
+  parent_id?: number | null;
+  tryout_id?: number | null;
+  group_number?: number | null;
+  pembagian?: number | null;
+  all_school?: boolean;
+  pengawas_name?: string | null;
 };
 
 export type ParticipantTest = {
@@ -161,6 +167,7 @@ export type ParticipantHistoryItem = ParticipantTest & {
   is_graded?: 0 | 1;
   started_at?: string | null;
   ended_at?: string | null;
+  test?: TestDetails; // Alternative property name for test_details in some API responses
 };
 
 export type PaginatedResponse<T> = {

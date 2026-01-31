@@ -32,6 +32,7 @@ export type ParticipantHistoryFilters = {
   searchBySpecific?: string;
   test_id?: number;
   is_graded?: 0 | 1;
+  parent_test_id?: number;
 };
 
 // ⬅️ ganti fungsi lama ini
@@ -71,6 +72,10 @@ function toQuery(params: ParticipantHistoryFilters = {}): string {
   }
   if (typeof params.searchBySpecific === "string") {
     q.set("searchBySpecific", params.searchBySpecific);
+  }
+
+  if (typeof params.parent_test_id === "number") {
+    q.set("parent_test_id", String(params.parent_test_id));
   }
 
   return q.toString();

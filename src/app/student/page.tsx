@@ -1,11 +1,33 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
-import { User2 } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { User2, FileSpreadsheet, FileText } from "lucide-react";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
+import { useGetTestListQuery } from "@/services/tryout/test.service";
+import { 
+  RadarChart, 
+  Radar, 
+  PolarGrid, 
+  PolarAngleAxis, 
+  PolarRadiusAxis, 
+  ResponsiveContainer,
+  Legend,
+  Tooltip
+} from "recharts";
+
+/** ===== Types ===== */
+type GroupedTryoutData = {
+  parent: ParticipantHistoryItem;
+  subTests: ParticipantHistoryItem[];
+};
 
 /** ===== Utils ===== */
 function formatDateTime(iso?: string | null): string {
@@ -58,6 +80,9 @@ export default function DashboardPage() {
   }, [history]);
 
   const totalHistory = history?.total ?? 0;
+
+  // Ambil sekolah dari session
+  const schoolName = user?.student?.school_name || user?.student?.school?.name || "—";
 
   if (!user) {
     return (
@@ -212,6 +237,13 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+
+        {/* Hasil Ujian Tryout */}
+        <TryoutResultsSection
+          userName={nameUser || "—"}
+          userEmail={emailUser || "—"}
+          schoolName={schoolName}
+        />
       </div>
     </div>
   );
@@ -343,4 +375,1082 @@ function Td({
       {children}
     </td>
   );
+}
+
+/** ===== Tryout Results Section ===== */
+function TryoutResultsSection({
+  userName,
+  userEmail,
+  schoolName,
+}: {
+  userName: string;
+  userEmail: string;
+  schoolName: string;
+}) {
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  // State untuk cascading dropdowns
+  const [selectedTryoutId, setSelectedTryoutId] = useState<number | null>(null);
+  const [selectedParentTestId, setSelectedParentTestId] = useState<number | null>(null);
+
+  // Fetch Tryout Categories
+  const { 
+    data: tryoutList, 
+    isLoading: isLoadingTryouts 
+  } = useGetTryoutListQuery({
+    page: 1,
+    paginate: 100,
+    orderBy: "tryouts.updated_at",
+  });
+
+  // Fetch Parent Tests based on selected tryout
+  const shouldFetchParentTests = selectedTryoutId !== null;
+  const { 
+    data: parentTestList, 
+    isLoading: isLoadingParentTests 
+  } = useGetTestListQuery(
+    shouldFetchParentTests
+      ? {
+          page: 1,
+          paginate: 100,
+          isParent: true,
+          tryout_id: selectedTryoutId,
+        }
+      : skipToken
+  );
+
+  // Fetch Participant History based on selected parent test
+  const shouldFetchHistory = user && selectedParentTestId !== null;
+  const { 
+    data: participantHistory, 
+    isLoading: isLoadingHistory 
+  } = useGetParticipantHistoryListQuery(
+    shouldFetchHistory
+      ? {
+          user_id: user.id,
+          paginate: 100,
+          orderBy: "updated_at",
+          parent_test_id: selectedParentTestId,
+        }
+      : skipToken
+  );
+
+  // Group data by parent test - tampilkan semua test yang sudah selesai
+  const filteredGroupedData = useMemo(() => {
+    if (!participantHistory?.data) return [];
+
+    const allItems = participantHistory.data;
+    
+    // Filter semua test yang sudah selesai dan punya grade
+    const completedTests = allItems.filter(
+      (item) =>
+        (item.end_date || item.updated_at) &&
+        item.grade !== undefined
+    );
+
+    if (completedTests.length === 0) {
+      return [];
+    }
+
+    // Cari semua parent test (parent_id null atau tidak ada) yang ada di completedTests
+    const parentTests = completedTests.filter(
+      (item) =>
+        !item.test_details?.parent_id || item.test_details.parent_id === null
+    );
+
+    // Untuk setiap parent test, cari semua sub test yang memiliki parent_id sama dengan test_id parent
+    const grouped: GroupedTryoutData[] = parentTests.map((parent) => {
+      const parentTestId = parent.test_id;
+      const subTests = completedTests.filter(
+        (item) =>
+          item.test_details?.parent_id === parentTestId
+      );
+
+      return {
+        parent,
+        subTests: subTests.length > 0 ? subTests : [parent], // Jika tidak ada sub test, gunakan parent sendiri
+      };
+    });
+
+    // Cari test yang punya parent_id tapi parent-nya tidak ada di history (orphan tests)
+    const orphanTests = completedTests.filter(
+      (item) => {
+        const parentId = item.test_details?.parent_id;
+        if (!parentId) return false; // Skip yang tidak punya parent_id
+        
+        // Cek apakah parent-nya ada di completedTests
+        const parentExists = completedTests.some(
+          (test) => test.test_id === parentId
+        );
+        
+        return !parentExists; // Jika parent tidak ada, ini orphan test
+      }
+    );
+
+    // Tambahkan orphan tests sebagai standalone
+    orphanTests.forEach((test) => {
+      grouped.push({
+        parent: test,
+        subTests: [test],
+      });
+    });
+
+    // Cari test yang tidak punya parent_id dan tidak ada di parent tests (standalone yang belum ditambahkan)
+    const standaloneTests = completedTests.filter(
+      (item) => {
+        const hasParentId = item.test_details?.parent_id;
+        if (hasParentId) return false; // Skip yang punya parent_id
+        
+        // Cek apakah sudah ada di grouped (sebagai parent atau sudah ditambahkan)
+        const alreadyAdded = grouped.some(
+          (g) => g.parent.id === item.id || g.subTests.some((st) => st.id === item.id)
+        );
+        
+        return !alreadyAdded;
+      }
+    );
+
+    // Tambahkan standalone tests
+    standaloneTests.forEach((test) => {
+      grouped.push({
+        parent: test,
+        subTests: [test],
+      });
+    });
+
+    return grouped;
+  }, [participantHistory]);
+
+  // Hitung total score dengan mempertimbangkan group_number dan pembagian
+  const totalScore = useMemo(() => {
+    if (filteredGroupedData.length === 0) return 0;
+    const allSubTests = filteredGroupedData.flatMap((group) => group.subTests);
+    // Cek apakah ada group_number yang valid (tidak 0 atau null)
+    const hasValidGroupNumber = allSubTests.some(
+      (test) => {
+        const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
+        const groupNumber = testDetails?.group_number ?? 0;
+        return groupNumber > 0;
+      }
+    );
+
+    if (!hasValidGroupNumber) {
+      // Jika tidak ada group_number valid, gunakan penjumlahan biasa
+      return allSubTests.reduce((sum, test) => sum + (test.grade || 0), 0);
+    }
+
+    // Jika ada group_number, hitung berdasarkan kelompok
+    const groupedByNumber = allSubTests.reduce((acc, test) => {
+      const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
+      const groupNumber = testDetails?.group_number ?? 0;
+      const pembagian = testDetails?.pembagian ?? 1;
+      
+      if (!acc[groupNumber]) {
+        acc[groupNumber] = {
+          tests: [],
+          pembagian: pembagian || 1, // Fallback ke 1 jika pembagian 0
+        };
+      }
+      
+      acc[groupNumber].tests.push(test);
+      return acc;
+    }, {} as Record<number, { tests: ParticipantHistoryItem[]; pembagian: number }>);
+
+    // Hitung total score: untuk setiap group, jumlahkan grade lalu bagi dengan pembagian
+    return Object.values(groupedByNumber).reduce((total, group) => {
+      const groupSum = group.tests.reduce((sum, test) => sum + (test.grade || 0), 0);
+      const groupScore = group.pembagian > 0 ? groupSum / group.pembagian : groupSum;
+      return total + groupScore;
+    }, 0);
+  }, [filteredGroupedData]);
+
+  // Data untuk ditampilkan di tabel
+  const displayTests = useMemo(() => {
+    return filteredGroupedData.flatMap((group) => group.subTests);
+  }, [filteredGroupedData]);
+
+  return (
+    <div className="rounded-2xl bg-white/80 ring-1 ring-zinc-100 shadow-sm backdrop-blur">
+      <div className="border-b border-zinc-100 px-4 py-3 md:px-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="font-semibold text-zinc-900">Hasil Ujian Tryout</h3>
+            <p className="text-xs text-zinc-500">
+              Detail hasil ujian yang sudah dinilai
+            </p>
+          </div>
+          {displayTests.length > 0 && (
+            <ExportButtons
+              groupData={null}
+              allGroupData={filteredGroupedData}
+              userName={userName}
+              userEmail={userEmail}
+              schoolName={schoolName}
+              totalScore={totalScore}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 md:p-6">
+        {/* Header Info */}
+        <div className="mb-6 grid gap-4 rounded-lg bg-sky-50/50 p-4 ring-1 ring-sky-100 md:grid-cols-3">
+          <div>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              Nama
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900">{userName}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              Sekolah
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900">{schoolName}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              Email
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900">{userEmail}</p>
+          </div>
+        </div>
+
+        {/* Cascading Dropdowns */}
+        <div className="mb-4 space-y-4">
+          {/* Dropdown 1: Kategori Tryout */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-zinc-700">
+              Pilih Kategori Tryout:
+            </label>
+            <select
+              value={selectedTryoutId ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSelectedTryoutId(value ? Number(value) : null);
+                setSelectedParentTestId(null); // Reset parent test selection
+              }}
+              disabled={isLoadingTryouts}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:bg-zinc-100 disabled:cursor-not-allowed"
+            >
+              <option value="">-- Pilih Kategori Tryout --</option>
+              {tryoutList?.data.map((tryout) => (
+                <option key={tryout.id} value={tryout.id}>
+                  {tryout.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown 2: Parent Test */}
+          {selectedTryoutId && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700">
+                Pilih Tryout Parent:
+              </label>
+              <select
+                value={selectedParentTestId ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedParentTestId(value ? Number(value) : null);
+                }}
+                disabled={isLoadingParentTests || !parentTestList?.data.length}
+                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:bg-zinc-100 disabled:cursor-not-allowed"
+              >
+                <option value="">-- Pilih Tryout Parent --</option>
+                {parentTestList?.data.map((test) => (
+                  <option key={test.id} value={test.id}>
+                    {test.title}
+                  </option>
+                ))}
+              </select>
+              {!isLoadingParentTests && !parentTestList?.data.length && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Tidak ada parent test untuk kategori tryout ini.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Loading State */}
+        {isLoadingHistory && selectedParentTestId && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-8 text-center">
+            <p className="text-zinc-600">Memuat data...</p>
+          </div>
+        )}
+
+        {/* No Data State */}
+        {!isLoadingHistory && selectedParentTestId && displayTests.length === 0 && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-8 text-center">
+            <p className="text-zinc-600">Belum ada hasil ujian yang sudah dinilai untuk tryout parent ini.</p>
+          </div>
+        )}
+
+        {/* Results Table */}
+        {!isLoadingHistory && displayTests.length > 0 && (
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-lg border border-zinc-200">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-sky-50 text-zinc-700">
+                    <Th>Nomor</Th>
+                    <Th>Sub Test</Th>
+                    <Th align="right">Nilai Score</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayTests.map((test, index) => (
+                    <tr
+                      key={test.id}
+                      className={index % 2 ? "bg-zinc-50/40" : "bg-white"}
+                    >
+                      <Td>{index + 1}</Td>
+                      <Td>
+                        <span className="font-medium">
+                          {test.test_details?.title ?? "—"}
+                        </span>
+                      </Td>
+                      <Td align="right">
+                        <span className="font-semibold text-sky-700">
+                          {test.grade ?? 0}
+                        </span>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-sky-100 font-semibold text-zinc-900">
+                    <Td colSpan={2}>Total Score</Td>
+                    <Td align="right">
+                      <span className="text-sky-700">{totalScore.toFixed(2)}</span>
+                    </Td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Spider Chart / Radar Chart */}
+            <div className="mt-6">
+              <h4 className="mb-4 text-sm font-semibold text-zinc-900">
+                Visualisasi Nilai per Sub Test
+              </h4>
+              <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                <ResponsiveContainer width="100%" height={400}>
+                  <RadarChart data={displayTests.map((test) => ({
+                    subject: test.test_details?.title?.length > 20 
+                      ? test.test_details.title.substring(0, 20) + '...' 
+                      : test.test_details?.title ?? "—",
+                    fullTitle: test.test_details?.title ?? "—",
+                    score: Number((test.grade ?? 0).toFixed(2)),
+                  }))}>
+                    <PolarGrid stroke="#e5e7eb" />
+                    <PolarAngleAxis 
+                      dataKey="subject" 
+                      tick={{ fill: '#52525b', fontSize: 12 }}
+                      tickLine={{ stroke: '#e5e7eb' }}
+                    />
+                    <PolarRadiusAxis 
+                      angle={90} 
+                      domain={[0, 'auto']}
+                      tick={{ fill: '#71717a', fontSize: 11 }}
+                    />
+                    <Radar
+                      name="Score"
+                      dataKey="score"
+                      stroke="#0ea5e9"
+                      fill="#0ea5e9"
+                      fillOpacity={0.6}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                      formatter={(value: number | undefined, _name: string | undefined, props: { payload?: { fullTitle: string } }) => [
+                        value?.toFixed(2) ?? '0.00',
+                        props.payload?.fullTitle ?? 'N/A'
+                      ]}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+                
+                {/* Summary Stats */}
+                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-zinc-200 pt-4 md:grid-cols-4">
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500">Total Score</p>
+                    <p className="mt-1 text-lg font-bold text-sky-700">
+                      {totalScore.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500">Rata-rata</p>
+                    <p className="mt-1 text-lg font-bold text-indigo-700">
+                      {(displayTests.length > 0 
+                        ? displayTests.reduce((sum, test) => sum + (test.grade || 0), 0) / displayTests.length 
+                        : 0
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500">Tertinggi</p>
+                    <p className="mt-1 text-lg font-bold text-emerald-700">
+                      {displayTests.length > 0
+                        ? Math.max(...displayTests.map(t => t.grade || 0)).toFixed(2)
+                        : 0}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500">Terendah</p>
+                    <p className="mt-1 text-lg font-bold text-amber-700">
+                      {displayTests.length > 0
+                        ? Math.min(...displayTests.map(t => t.grade || 0)).toFixed(2)
+                        : 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Initial State - No Selection */}
+        {!selectedTryoutId && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-8 text-center">
+            <p className="text-zinc-600">Silakan pilih kategori tryout terlebih dahulu.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** ===== Export Functions (declared before use) ===== */
+function exportAllToExcel(
+  allGroupData: GroupedTryoutData[],
+  userName: string,
+  userEmail: string,
+  schoolName: string,
+  totalScore: number
+) {
+  // Gabungkan semua sub test dari semua group
+  const allSubTests = allGroupData.flatMap((group) => group.subTests);
+
+  // Prepare data
+  const worksheetData = [
+    ["HASIL UJIAN TRYOUT - SEMUA"],
+    [],
+    ["Nama", userName],
+    ["Sekolah", schoolName],
+    ["Email", userEmail],
+    [],
+    ["Nomor", "Sub Test", "Nilai Score"],
+    ...allSubTests.map((test, index) => [
+      index + 1,
+      test.test_details?.title ?? "—",
+      test.grade ?? 0,
+    ]),
+    [],
+    ["Total Score", "", Number(totalScore.toFixed(2))],
+  ];
+
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  // Style: Merge title row
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+  ];
+
+  // Set column widths
+  ws["!cols"] = [{ wch: 10 }, { wch: 40 }, { wch: 15 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Hasil Tryout");
+
+  // Generate filename
+  const filename = `hasil_ujian_tryout_semua_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+  // Download
+  XLSX.writeFile(wb, filename);
+}
+
+async function exportAllToPDF(
+  allGroupData: GroupedTryoutData[],
+  userName: string,
+  userEmail: string,
+  schoolName: string,
+  totalScore: number
+) {
+  // Gabungkan semua sub test dari semua group
+  const allSubTests = allGroupData.flatMap((group) => group.subTests);
+
+  // Create HTML content
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Arial', sans-serif;
+          padding: 20px;
+          color: #1f2937;
+          background: #fff;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 3px solid #0ea5e9;
+        }
+        .header h1 {
+          font-size: 24px;
+          font-weight: bold;
+          color: #0ea5e9;
+          margin-bottom: 10px;
+        }
+        .info-section {
+          background: #f0f9ff;
+          padding: 20px;
+          border-radius: 8px;
+          margin-bottom: 30px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
+        }
+        .info-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 5px;
+        }
+        .info-value {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        thead {
+          background: #0ea5e9;
+          color: #fff;
+        }
+        th {
+          padding: 12px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        th:last-child {
+          text-align: right;
+        }
+        tbody tr {
+          border-bottom: 1px solid #e5e7eb;
+        }
+        tbody tr:nth-child(even) {
+          background: #f9fafb;
+        }
+        td {
+          padding: 12px;
+          font-size: 13px;
+        }
+        td:last-child {
+          text-align: right;
+          font-weight: 600;
+          color: #0ea5e9;
+        }
+        tfoot {
+          background: #0ea5e9;
+          color: #fff;
+          font-weight: bold;
+        }
+        tfoot td {
+          color: #fff;
+          font-size: 14px;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 2px solid #e5e7eb;
+          text-align: center;
+          font-size: 11px;
+          color: #64748b;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>HASIL UJIAN TRYOUT - SEMUA</h1>
+      </div>
+      
+      <div class="info-section">
+        <div class="info-item">
+          <div class="info-label">Nama</div>
+          <div class="info-value">${userName}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Sekolah</div>
+          <div class="info-value">${schoolName}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Email</div>
+          <div class="info-value">${userEmail}</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nomor</th>
+            <th>Sub Test</th>
+            <th>Nilai Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${allSubTests
+            .map(
+              (test, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${test.test_details?.title ?? "—"}</td>
+              <td>${test.grade ?? 0}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Total Score</td>
+            <td>${totalScore.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="footer">
+        Dokumen ini dihasilkan pada ${new Date().toLocaleString("id-ID", {
+          dateStyle: "long",
+          timeStyle: "short",
+        })}
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Create temporary element
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Popup diblokir. Izinkan popup untuk mengunduh PDF.");
+    return;
+  }
+
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+
+  // Wait for content to load, then generate PDF
+  setTimeout(async () => {
+    try {
+      const canvas = await html2canvas(printWindow.document.body, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const filename = `hasil_ujian_tryout_semua_${new Date().toISOString().split("T")[0]}.pdf`;
+
+      pdf.save(filename);
+      printWindow.close();
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Terjadi kesalahan saat membuat PDF. Silakan coba lagi.");
+      printWindow.close();
+    }
+  }, 500);
+}
+
+/** ===== Export Buttons Component ===== */
+function ExportButtons({
+  groupData,
+  allGroupData,
+  userName,
+  userEmail,
+  schoolName,
+  totalScore,
+}: {
+  groupData: GroupedTryoutData | null;
+  allGroupData: GroupedTryoutData[] | null;
+  userName: string;
+  userEmail: string;
+  schoolName: string;
+  totalScore: number;
+}) {
+  const handleExportExcel = () => {
+    if (allGroupData) {
+      exportAllToExcel(allGroupData, userName, userEmail, schoolName, totalScore);
+    } else if (groupData) {
+      exportToExcel(groupData, userName, userEmail, schoolName, totalScore);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (allGroupData) {
+      await exportAllToPDF(allGroupData, userName, userEmail, schoolName, totalScore);
+    } else if (groupData) {
+      await exportToPDF(groupData, userName, userEmail, schoolName, totalScore);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExportExcel}
+        className="gap-2"
+      >
+        <FileSpreadsheet className="h-4 w-4" />
+        Excel
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExportPDF}
+        className="gap-2"
+      >
+        <FileText className="h-4 w-4" />
+        PDF
+      </Button>
+    </div>
+  );
+}
+
+/** ===== Export Functions ===== */
+function exportToExcel(
+  groupData: GroupedTryoutData,
+  userName: string,
+  userEmail: string,
+  schoolName: string,
+  totalScore: number
+) {
+  const subTests = groupData.subTests;
+  const parentTitle = groupData.parent.test_details?.title ?? "Tryout";
+
+  // Prepare data
+  const worksheetData = [
+    ["HASIL UJIAN TRYOUT"],
+    [],
+    ["Nama", userName],
+    ["Sekolah", schoolName],
+    ["Email", userEmail],
+    ["Judul Tryout", parentTitle],
+    [],
+    ["Nomor", "Sub Test", "Nilai Score"],
+    ...subTests.map((test, index) => [
+      index + 1,
+      test.test_details?.title ?? "—",
+      test.grade ?? 0,
+    ]),
+    [],
+    ["Total Score", "", Number(totalScore.toFixed(2))],
+  ];
+
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  // Style: Merge title row
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+  ];
+
+  // Set column widths
+  ws["!cols"] = [{ wch: 10 }, { wch: 40 }, { wch: 15 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Hasil Tryout");
+
+  // Generate filename
+  const testTitle = parentTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const filename = `hasil_ujian_tryout_${testTitle}_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+  // Download
+  XLSX.writeFile(wb, filename);
+}
+
+async function exportToPDF(
+  groupData: GroupedTryoutData,
+  userName: string,
+  userEmail: string,
+  schoolName: string,
+  totalScore: number
+) {
+  const subTests = groupData.subTests;
+  const parentTitle = groupData.parent.test_details?.title ?? "Tryout";
+
+  // Create HTML content
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Arial', sans-serif;
+          padding: 20px;
+          color: #1f2937;
+          background: #fff;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 3px solid #0ea5e9;
+        }
+        .header h1 {
+          font-size: 24px;
+          font-weight: bold;
+          color: #0ea5e9;
+          margin-bottom: 10px;
+        }
+        .info-section {
+          background: #f0f9ff;
+          padding: 20px;
+          border-radius: 8px;
+          margin-bottom: 30px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
+        }
+        .info-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 5px;
+        }
+        .info-value {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+        .test-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1f2937;
+          margin-bottom: 20px;
+          padding: 10px;
+          background: #f8fafc;
+          border-left: 4px solid #0ea5e9;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        thead {
+          background: #0ea5e9;
+          color: #fff;
+        }
+        th {
+          padding: 12px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        th:last-child {
+          text-align: right;
+        }
+        tbody tr {
+          border-bottom: 1px solid #e5e7eb;
+        }
+        tbody tr:nth-child(even) {
+          background: #f9fafb;
+        }
+        td {
+          padding: 12px;
+          font-size: 13px;
+        }
+        td:last-child {
+          text-align: right;
+          font-weight: 600;
+          color: #0ea5e9;
+        }
+        tfoot {
+          background: #0ea5e9;
+          color: #fff;
+          font-weight: bold;
+        }
+        tfoot td {
+          color: #fff;
+          font-size: 14px;
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 2px solid #e5e7eb;
+          text-align: center;
+          font-size: 11px;
+          color: #64748b;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>HASIL UJIAN TRYOUT</h1>
+      </div>
+      
+      <div class="info-section">
+        <div class="info-item">
+          <div class="info-label">Nama</div>
+          <div class="info-value">${userName}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Sekolah</div>
+          <div class="info-value">${schoolName}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Email</div>
+          <div class="info-value">${userEmail}</div>
+        </div>
+      </div>
+
+      <div class="test-title">
+        ${parentTitle}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nomor</th>
+            <th>Sub Test</th>
+            <th>Nilai Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${subTests
+            .map(
+              (test, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${test.test_details?.title ?? "—"}</td>
+              <td>${test.grade ?? 0}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Total Score</td>
+            <td>${totalScore.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="footer">
+        Dokumen ini dihasilkan pada ${new Date().toLocaleString("id-ID", {
+          dateStyle: "long",
+          timeStyle: "short",
+        })}
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Create temporary element
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Popup diblokir. Izinkan popup untuk mengunduh PDF.");
+    return;
+  }
+
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+
+  // Wait for content to load, then generate PDF
+  setTimeout(async () => {
+    try {
+      const canvas = await html2canvas(printWindow.document.body, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const testTitle = parentTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const filename = `hasil_ujian_tryout_${testTitle}_${new Date().toISOString().split("T")[0]}.pdf`;
+
+      pdf.save(filename);
+      printWindow.close();
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Terjadi kesalahan saat membuat PDF. Silakan coba lagi.");
+      printWindow.close();
+    }
+  }, 500);
 }
