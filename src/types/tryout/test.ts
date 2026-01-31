@@ -63,6 +63,8 @@ export interface Test {
   all_school: number; // 🆕 1 atau 0
   school_except_id?: number[];
   school_excepts: SchoolExcept[];
+  group_number?: number | null;
+  pembagian?: number | null;
 }
 
 // ===== API enums yang dipakai payload =====
@@ -100,6 +102,8 @@ export interface TestPayload {
   parent_id: number | null;
   tryout_id: number | null;
   school_except_id?: number[];
+  group_number?: number | null;
+  pembagian?: number | null;
 }
 
 // Untuk update jika backend mengizinkan parsial

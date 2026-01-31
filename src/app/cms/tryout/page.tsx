@@ -96,6 +96,8 @@ const emptyForm: FormState = {
   status: 1,
   parent_id: null,
   tryout_id: null,
+  group_number: null,
+  pembagian: null,
 };
 
 function dateOnly(input?: string | null): string {
@@ -240,6 +242,8 @@ export default function TryoutPage() {
       status: t.status ? 1 : 0,
       parent_id: t.parent_id ?? null,
       tryout_id: t.tryout_id ?? null,
+      group_number: t.group_number ?? null,
+      pembagian: t.pembagian ?? null,
     };
   };
 
@@ -266,6 +270,8 @@ export default function TryoutPage() {
       status: Number(f.status || 0),
       parent_id: f.parent_id,
       tryout_id: f.tryout_id,
+      group_number: f.group_number,
+      pembagian: f.pembagian,
     };
 
     if (f.timer_type === "per_test") {

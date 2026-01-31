@@ -16,7 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, X, School as SchoolIcon, Ban } from "lucide-react";
+import { 
+  Loader2, 
+  X, 
+  School as SchoolIcon, 
+  Ban, 
+  Settings2, 
+  Calendar, 
+  Users as UsersIcon, 
+  FileText,
+  Layers,
+  Hash
+} from "lucide-react";
 
 import type { School } from "@/types/master/school";
 import type { Users } from "@/types/user";
@@ -62,6 +73,8 @@ export type FormState = {
   status: number;
   parent_id: number | null;
   tryout_id: number | null;
+  group_number: number | null;
+  pembagian: number | null;
 };
 
 type Props = {
@@ -144,6 +157,8 @@ export default function TryoutForm({
         status: detailData.status ? 1 : 0,
         parent_id: detailData.parent_id ?? null,
         tryout_id: detailData.tryout_id ?? null,
+        group_number: detailData.group_number ?? null,
+        pembagian: detailData.pembagian ?? null,
 
         // Logika Sekolah
         all_school: detailData.all_school ? 1 : 0,
@@ -364,93 +379,144 @@ export default function TryoutForm({
   if (initial.id && loadingDetail) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Kiri */}
-      <div className="space-y-3">
-        {/* Urutan 1: Kategori Tryout */}
-        <div>
-          <Label>Kategori Tryout</Label>
-          <div className="h-2" />
-          <Combobox
-            value={form.tryout_id}
-            onChange={(value) => setForm({ ...form, tryout_id: value })}
-            onSearchChange={setTryoutSearch}
-            onOpenRefetch={refetchTryout}
-            data={tryoutList}
-            isLoading={loadingTryout}
-            placeholder="Pilih Kategori Tryout"
-            getOptionLabel={(t) => t.title}
-          />
+    <div className="space-y-6">
+      {/* Section 1: Informasi Dasar */}
+      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+            <FileText className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-zinc-800">Informasi Dasar</h3>
         </div>
 
-        {/* Urutan 2: Tryout Induk / Tryout Parent (Opsional) */}
-        <div>
-          <Label>Tryout Induk / Tryout Parent (Opsional)</Label>
-          <div className="h-2" />
-          <Combobox<Test>
-            value={form.parent_id}
-            onChange={(value) => {
-              const selectedParent = parentList.find((p) => p.id === value);
-
-              setForm((prev) => ({
-                ...prev,
-                parent_id: value,
-                start_date: selectedParent
-                  ? dateOnly(selectedParent.start_date)
-                  : prev.start_date,
-                end_date: selectedParent
-                  ? dateOnly(selectedParent.end_date)
-                  : prev.end_date,
-                status: selectedParent
-                  ? selectedParent.status
-                    ? 1
-                    : 0
-                  : prev.status,
-              }));
-            }}
-            onSearchChange={setParentSearch}
-            onOpenRefetch={refetchParent}
-            data={parentList}
-            isLoading={loadingParent}
-            placeholder="Pilih Induk Tes"
-            getOptionLabel={(t) => t.title}
-          />
-        </div>
-
-        {/* Urutan 3: Konfigurasi Sekolah (Semua Sekolah vs Manual) */}
-        <div className="p-4 border rounded-lg bg-slate-50/50 space-y-4">
-          <div className="flex flex-col gap-2">
-            <Label className="font-bold">Cakupan Sekolah *</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={form.all_school === 1 ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setForm({ ...form, all_school: 1 })}
-              >
-                Semua Sekolah
-              </Button>
-              <Button
-                type="button"
-                variant={form.all_school === 0 ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setForm({ ...form, all_school: 0 })}
-              >
-                Manual (Pilih)
-              </Button>
-            </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Kategori Tryout */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">Kategori Tryout</Label>
+            <Combobox
+              value={form.tryout_id}
+              onChange={(value) => setForm({ ...form, tryout_id: value })}
+              onSearchChange={setTryoutSearch}
+              onOpenRefetch={refetchTryout}
+              data={tryoutList}
+              isLoading={loadingTryout}
+              placeholder="Pilih Kategori Tryout"
+              getOptionLabel={(t) => t.title}
+            />
           </div>
 
-          {/* Skenario 1: MANUAL (all_school === 0) */}
+          {/* Tryout Induk */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              Tryout Induk <span className="text-zinc-400">(Opsional)</span>
+            </Label>
+            <Combobox<Test>
+              value={form.parent_id}
+              onChange={(value) => {
+                const selectedParent = parentList.find((p) => p.id === value);
+                setForm((prev) => ({
+                  ...prev,
+                  parent_id: value,
+                  start_date: selectedParent ? dateOnly(selectedParent.start_date) : prev.start_date,
+                  end_date: selectedParent ? dateOnly(selectedParent.end_date) : prev.end_date,
+                  status: selectedParent ? (selectedParent.status ? 1 : 0) : prev.status,
+                }));
+              }}
+              onSearchChange={setParentSearch}
+              onOpenRefetch={refetchParent}
+              data={parentList}
+              isLoading={loadingParent}
+              placeholder="Pilih Induk Tes"
+              getOptionLabel={(t) => t.title}
+            />
+          </div>
+
+          {/* Judul */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              Judul <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Masukkan judul tryout"
+              className="border-zinc-200 focus:border-sky-400 focus:ring-sky-100"
+            />
+          </div>
+
+          {/* Sub Judul */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">Sub Judul</Label>
+            <Input
+              value={form.sub_title ?? ""}
+              onChange={(e) => setForm({ ...form, sub_title: e.target.value })}
+              placeholder="Masukkan sub judul (opsional)"
+              className="border-zinc-200 focus:border-sky-400 focus:ring-sky-100"
+            />
+          </div>
+
+          {/* Pengawas */}
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              <UsersIcon className="mr-1 inline-block h-4 w-4" />
+              Pengawas <span className="text-red-500">*</span>
+            </Label>
+            <Combobox<Users>
+              value={form.user_id}
+              onChange={(value) => setForm({ ...form, user_id: value })}
+              onSearchChange={setPengawasSearch}
+              onOpenRefetch={handlePengawasOpenRefetch}
+              data={pengawasList}
+              isLoading={loadingPengawas}
+              placeholder="Pilih Pengawas"
+              getOptionLabel={(u) => `${u.name} (${u.email})`}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2: Konfigurasi Sekolah */}
+      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+            <SchoolIcon className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-zinc-800">Cakupan Sekolah</h3>
+        </div>
+
+        <div className="space-y-4">
+          {/* Toggle Semua / Manual */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={form.all_school === 1 ? "default" : "outline"}
+              className={`flex-1 transition-all ${form.all_school === 1 ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+              onClick={() => setForm({ ...form, all_school: 1 })}
+            >
+              <SchoolIcon className="mr-2 h-4 w-4" />
+              Semua Sekolah
+            </Button>
+            <Button
+              type="button"
+              variant={form.all_school === 0 ? "default" : "outline"}
+              className={`flex-1 transition-all ${form.all_school === 0 ? "bg-sky-600 hover:bg-sky-700" : ""}`}
+              onClick={() => setForm({ ...form, all_school: 0 })}
+            >
+              <Settings2 className="mr-2 h-4 w-4" />
+              Manual (Pilih)
+            </Button>
+          </div>
+
+          {/* MANUAL Mode */}
           {form.all_school === 0 && (
-            <div className="space-y-3 animate-in fade-in duration-300">
-              <Label className="text-xs">
+            <div className="space-y-3 rounded-lg border border-sky-100 bg-sky-50/50 p-4 animate-in fade-in duration-300">
+              <Label className="text-sm font-medium text-sky-800">
                 Pilih Sekolah yang Dapat Mengakses
               </Label>
               <div className="flex gap-2">
@@ -461,7 +527,7 @@ export default function TryoutForm({
                     onSearchChange={setSchoolSearch}
                     data={availableSchools}
                     isLoading={loadingSchools}
-                    placeholder="Tambah sekolah..."
+                    placeholder="Cari dan tambah sekolah..."
                     getOptionLabel={(s) => s.name}
                   />
                 </div>
@@ -469,32 +535,35 @@ export default function TryoutForm({
                   type="button"
                   onClick={handleAddSchool}
                   disabled={!newSchoolId}
+                  className="bg-sky-600 hover:bg-sky-700"
                 >
                   Tambah
                 </Button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {form.school_id.map((id) => (
-                  <Badge key={id} variant="default" className="bg-sky-500">
-                    <SchoolIcon className="mr-1 h-3 w-3" />
-                    {schoolMap.get(id) ?? id}
-                    <X
-                      className="ml-1 h-3 w-3 cursor-pointer"
-                      onClick={() => handleRemoveSchool(id)}
-                    />
-                  </Badge>
-                ))}
-              </div>
+              {form.school_id.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {form.school_id.map((id) => (
+                    <Badge key={id} className="bg-sky-500 hover:bg-sky-600 transition-colors">
+                      <SchoolIcon className="mr-1 h-3 w-3" />
+                      {schoolMap.get(id) ?? id}
+                      <X
+                        className="ml-1 h-3 w-3 cursor-pointer hover:text-sky-200"
+                        onClick={() => handleRemoveSchool(id)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Skenario 2: SEMUA SEKOLAH (all_school === 1) */}
+          {/* SEMUA SEKOLAH Mode - Exception */}
           {form.all_school === 1 && (
-            <div className="pt-2 border-t animate-in fade-in duration-300">
-              <Label className="text-xs text-destructive font-semibold">
-                Pilih Sekolah Tidak Boleh Akses (Kecualikan)
+            <div className="space-y-3 rounded-lg border border-amber-100 bg-amber-50/50 p-4 animate-in fade-in duration-300">
+              <Label className="text-sm font-medium text-amber-800">
+                <Ban className="mr-1 inline-block h-4 w-4" />
+                Kecualikan Sekolah (Tidak Boleh Akses)
               </Label>
-              <div className="h-2" />
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Combobox<School>
@@ -503,7 +572,7 @@ export default function TryoutForm({
                     onSearchChange={setSchoolSearch}
                     data={availableExceptSchools}
                     isLoading={loadingSchools}
-                    placeholder="Kecualikan sekolah..."
+                    placeholder="Cari sekolah untuk dikecualikan..."
                     getOptionLabel={(s) => s.name}
                   />
                 </div>
@@ -516,66 +585,43 @@ export default function TryoutForm({
                   Tambah
                 </Button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {form.school_except_id.map((id) => (
-                  <Badge key={id} variant="destructive">
-                    <Ban className="mr-1 h-3 w-3" />
-                    {schoolMap.get(id) ?? id}
-                    <X
-                      className="ml-1 h-3 w-3 cursor-pointer"
-                      onClick={() => handleRemoveExceptSchool(id)}
-                    />
-                  </Badge>
-                ))}
-              </div>
+              {form.school_except_id.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {form.school_except_id.map((id) => (
+                    <Badge key={id} variant="destructive" className="transition-colors">
+                      <Ban className="mr-1 h-3 w-3" />
+                      {schoolMap.get(id) ?? id}
+                      <X
+                        className="ml-1 h-3 w-3 cursor-pointer hover:text-red-200"
+                        onClick={() => handleRemoveExceptSchool(id)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
+      </div>
 
-        <div>
-          <Label>Pengawas *</Label>
-          <div className="h-2" />
-          <Combobox<Users>
-            value={form.user_id}
-            onChange={(value) => setForm({ ...form, user_id: value })}
-            onSearchChange={setPengawasSearch}
-            onOpenRefetch={handlePengawasOpenRefetch}
-            data={pengawasList}
-            isLoading={loadingPengawas}
-            placeholder="Pilih Pengawas"
-            getOptionLabel={(u) => `${u.name} (${u.email})`}
-          />
+      {/* Section 3: Pengaturan Test */}
+      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+            <Settings2 className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-zinc-800">Pengaturan Test</h3>
         </div>
 
-        <div>
-          <Label>Judul *</Label>
-          <div className="h-2" />
-          <Input
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <Label>Sub Judul</Label>
-          <div className="h-2" />
-          <Input
-            value={form.sub_title ?? ""}
-            onChange={(e) => setForm({ ...form, sub_title: e.target.value })}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Timer Type</Label>
-            <div className="h-2" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {/* Timer Type */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">Timer Type</Label>
             <Select
               value={form.timer_type}
-              onValueChange={(v) =>
-                setForm((prev) => ({ ...prev, timer_type: v as TimerType }))
-              }
+              onValueChange={(v) => setForm((prev) => ({ ...prev, timer_type: v as TimerType }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100">
                 <SelectValue placeholder="Pilih timer type" />
               </SelectTrigger>
               <SelectContent>
@@ -585,16 +631,14 @@ export default function TryoutForm({
             </Select>
           </div>
 
-          <div>
-            <Label>Score Type</Label>
-            <div className="h-2" />
+          {/* Score Type */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">Score Type</Label>
             <Select
               value={form.score_type}
-              onValueChange={(v) =>
-                setForm((prev) => ({ ...prev, score_type: v as ScoreType }))
-              }
+              onValueChange={(v) => setForm((prev) => ({ ...prev, score_type: v as ScoreType }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100">
                 <SelectValue placeholder="Pilih score type" />
               </SelectTrigger>
               <SelectContent>
@@ -603,97 +647,201 @@ export default function TryoutForm({
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>
-              Total Time (detik){" "}
-              {form.timer_type === "per_test" ? "*" : "(diabaikan)"}
+          {/* Total Time */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              Total Time (detik) {form.timer_type === "per_test" ? <span className="text-red-500">*</span> : <span className="text-zinc-400">(diabaikan)</span>}
             </Label>
-            <div className="h-2" />
             <Input
               type="number"
               disabled={form.timer_type !== "per_test"}
               value={form.timer_type === "per_test" ? form.total_time : 0}
-              onChange={(e) =>
-                setForm({ ...form, total_time: Number(e.target.value) })
-              }
+              onChange={(e) => setForm({ ...form, total_time: Number(e.target.value) })}
+              className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100 disabled:bg-zinc-100"
             />
           </div>
-          <div className="flex items-center gap-2 mt-6">
+
+          {/* Pass Grade */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">Pass Grade</Label>
+            <Input
+              type="number"
+              value={form.pass_grade}
+              onChange={(e) => setForm({ ...form, pass_grade: Number(e.target.value) })}
+              className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100"
+            />
+          </div>
+        </div>
+
+        {/* Switches */}
+        <div className="mt-4 flex flex-wrap gap-6 border-t border-zinc-100 pt-4">
+          <div className="flex items-center gap-3">
             <Switch
               checked={!!form.is_graded}
               onCheckedChange={(v) => setForm({ ...form, is_graded: v })}
               id="graded"
+              className="data-[state=checked]:bg-violet-600"
             />
-            <Label htmlFor="graded">Status: Active (Graded)</Label>
+            <Label htmlFor="graded" className="text-sm text-zinc-700 cursor-pointer">
+              Active (Graded)
+            </Label>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Pass Grade</Label>
-            <div className="h-2" />
-            <Input
-              type="number"
-              value={form.pass_grade}
-              onChange={(e) =>
-                setForm({ ...form, pass_grade: Number(e.target.value) })
-              }
-            />
-          </div>
-          <div className="flex items-center gap-2 mt-6">
+          <div className="flex items-center gap-3">
             <Switch
               id="shuffle"
               checked={Boolean(form.shuffle_questions)}
-              onCheckedChange={(v) =>
-                setForm({ ...form, shuffle_questions: v })
-              }
+              onCheckedChange={(v) => setForm({ ...form, shuffle_questions: v })}
+              className="data-[state=checked]:bg-violet-600"
             />
-            <Label htmlFor="shuffle">Shuffle Questions</Label>
+            <Label htmlFor="shuffle" className="text-sm text-zinc-700 cursor-pointer">
+              Shuffle Questions
+            </Label>
+          </div>
+          {!form.parent_id && (
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={!!form.status}
+                onCheckedChange={(v) => setForm({ ...form, status: v ? 1 : 0 })}
+                id="status-switch"
+                className="data-[state=checked]:bg-emerald-600"
+              />
+              <Label htmlFor="status-switch" className="text-sm text-zinc-700 cursor-pointer">
+                Status Aktif
+              </Label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Section 4: Pengelompokan Score (Group Number & Pembagian) */}
+      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+            <Layers className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-zinc-800">Pengelompokan Score</h3>
+          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+            Opsional
+          </span>
+        </div>
+
+        <p className="mb-4 text-sm text-zinc-500">
+          Jika test ini merupakan bagian dari kelompok test dengan perhitungan score khusus, atur nomor grup dan pembagi score di sini.
+        </p>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Group Number */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              <Hash className="mr-1 inline-block h-4 w-4 text-amber-600" />
+              Group Number
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.group_number ?? ""}
+              onChange={(e) => setForm({ ...form, group_number: e.target.value ? Number(e.target.value) : null })}
+              placeholder="Masukkan nomor grup (0 = tidak ada grup)"
+              className="border-zinc-200 focus:border-amber-400 focus:ring-amber-100"
+            />
+            <p className="text-xs text-zinc-400">
+              Test dengan group_number yang sama akan dijumlahkan score-nya.
+            </p>
+          </div>
+
+          {/* Pembagian */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-zinc-700">
+              <Layers className="mr-1 inline-block h-4 w-4 text-amber-600" />
+              Pembagian
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.pembagian ?? ""}
+              onChange={(e) => setForm({ ...form, pembagian: e.target.value ? Number(e.target.value) : null })}
+              placeholder="Masukkan nilai pembagi score"
+              className="border-zinc-200 focus:border-amber-400 focus:ring-amber-100"
+            />
+            <p className="text-xs text-zinc-400">
+              Total score grup akan dibagi dengan nilai ini untuk mendapatkan score akhir grup.
+            </p>
           </div>
         </div>
 
-        {!form.parent_id && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Tanggal Mulai</Label>
-              <div className="h-2" />
-              <Input
-                type="date"
-                value={form.start_date || ""}
-                onChange={(e) =>
-                  setForm({ ...form, start_date: dateOnly(e.target.value) })
-                }
-                required={form.score_type === "irt"}
-              />
-            </div>
-            <div>
-              <Label>Tanggal Selesai</Label>
-              <div className="h-2" />
-              <Input
-                type="date"
-                value={form.end_date || ""}
-                onChange={(e) =>
-                  setForm({ ...form, end_date: dateOnly(e.target.value) })
-                }
-                required={form.score_type === "irt"}
-              />
-            </div>
+        {/* Info Box */}
+        {(form.group_number ?? 0) > 0 && (
+          <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 animate-in fade-in duration-300">
+            <p className="text-sm text-amber-800">
+              <strong>Info:</strong> Test ini akan dikelompokkan ke dalam <strong>Grup {form.group_number}</strong>
+              {form.pembagian ? ` dengan pembagi score ${form.pembagian}` : ""}.
+            </p>
           </div>
         )}
       </div>
 
-      {/* Kanan: Rich Text */}
-      <div className="space-y-1">
-        <Label>Deskripsi (Rich Text)</Label>
-        <div className="h-1" />
-        <div className="rounded-lg border bg-background">
+      {/* Section 5: Jadwal */}
+      {!form.parent_id && (
+        <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <h3 className="font-semibold text-zinc-800">Jadwal</h3>
+            {form.score_type === "irt" && (
+              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                Wajib untuk IRT
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Tanggal Mulai */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-zinc-700">
+                Tanggal Mulai {form.score_type === "irt" && <span className="text-red-500">*</span>}
+              </Label>
+              <Input
+                type="date"
+                value={form.start_date || ""}
+                onChange={(e) => setForm({ ...form, start_date: dateOnly(e.target.value) })}
+                required={form.score_type === "irt"}
+                className="border-zinc-200 focus:border-blue-400 focus:ring-blue-100"
+              />
+            </div>
+
+            {/* Tanggal Selesai */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-zinc-700">
+                Tanggal Selesai {form.score_type === "irt" && <span className="text-red-500">*</span>}
+              </Label>
+              <Input
+                type="date"
+                value={form.end_date || ""}
+                onChange={(e) => setForm({ ...form, end_date: dateOnly(e.target.value) })}
+                required={form.score_type === "irt"}
+                className="border-zinc-200 focus:border-blue-400 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 6: Deskripsi */}
+      <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50/50 p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 border-b border-zinc-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+            <FileText className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-zinc-800">Deskripsi</h3>
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
           <SunEditor
             setContents={form.description}
             onChange={handleRTChange}
-            placeholder="Tulis konten di sini…"
+            placeholder="Tulis deskripsi tryout di sini…"
             setDefaultStyle={`
               body { font-family: inherit; font-size: 14px; line-height: 1.7; color: hsl(var(--foreground)); background: transparent; }
               a { color: hsl(var(--primary)); text-decoration: underline; }
@@ -702,8 +850,8 @@ export default function TryoutForm({
               th, td { padding: 6px 10px; }
             `}
             setOptions={{
-              minHeight: "320px",
-              maxHeight: "60vh",
+              minHeight: "280px",
+              maxHeight: "50vh",
               charCounter: true,
               showPathLabel: false,
               resizingBar: true,
@@ -711,24 +859,18 @@ export default function TryoutForm({
             }}
           />
         </div>
-        {!form.parent_id && (
-          <div className="flex items-center gap-3 mt-4">
-            <Switch
-              checked={!!form.status}
-              onCheckedChange={(v) => setForm({ ...form, status: v ? 1 : 0 })}
-              id="status-switch"
-            />
-            <Label htmlFor="status-switch">Status aktif</Label>
-          </div>
-        )}
       </div>
 
       {/* Actions */}
-      <div className="md:col-span-2 flex justify-end gap-2 mt-4">
-        <Button variant="outline" onClick={onCancel}>
+      <div className="flex justify-end gap-3 border-t border-zinc-200 pt-5">
+        <Button variant="outline" onClick={onCancel} className="px-6">
           Batal
         </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={submitting}
+          className="bg-sky-600 hover:bg-sky-700 px-8"
+        >
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Simpan
         </Button>
