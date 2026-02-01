@@ -555,46 +555,15 @@ function TryoutResultsSection({
     });
   }, [filteredGroupedData]);
 
-  // Hitung total score dengan mempertimbangkan group_number dan pembagian (using deduplicated data)
+  // Hitung total score: setiap test = grade / pembagian, lalu dijumlahkan (tanpa groupedByNumber)
   const totalScore = useMemo(() => {
     if (displayTests.length === 0) return 0;
     
-    // Cek apakah ada group_number yang valid (tidak 0 atau null)
-    const hasValidGroupNumber = displayTests.some(
-      (test) => {
-        const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
-        const groupNumber = testDetails?.group_number ?? 0;
-        return groupNumber > 0;
-      }
-    );
-
-    if (!hasValidGroupNumber) {
-      // Jika tidak ada group_number valid, gunakan penjumlahan biasa
-      return displayTests.reduce((sum, test) => sum + (test.grade || 0), 0);
-    }
-
-    // Jika ada group_number, hitung berdasarkan kelompok
-    const groupedByNumber = displayTests.reduce((acc, test) => {
-      const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
-      const groupNumber = testDetails?.group_number ?? 0;
-      const pembagian = testDetails?.pembagian ?? 1;
-      
-      if (!acc[groupNumber]) {
-        acc[groupNumber] = {
-          tests: [],
-          pembagian: pembagian || 1, // Fallback ke 1 jika pembagian 0
-        };
-      }
-      
-      acc[groupNumber].tests.push(test);
-      return acc;
-    }, {} as Record<number, { tests: ParticipantHistoryItem[]; pembagian: number }>);
-
-    // Hitung total score: untuk setiap group, jumlahkan grade lalu bagi dengan pembagian
-    return Object.values(groupedByNumber).reduce((total, group) => {
-      const groupSum = group.tests.reduce((sum, test) => sum + (test.grade || 0), 0);
-      const groupScore = group.pembagian > 0 ? groupSum / group.pembagian : groupSum;
-      return total + groupScore;
+    return displayTests.reduce((sum, test) => {
+      const grade = test.grade ?? 0;
+      const pembagian = test?.test?.pembagian ?? 1;
+      const divisor = pembagian && pembagian > 0 ? pembagian : 1;
+      return sum + grade / divisor;
     }, 0);
   }, [displayTests]);
 
@@ -725,33 +694,51 @@ function TryoutResultsSection({
                     <Th>Nomor</Th>
                     <Th>Sub Test</Th>
                     <Th align="right">Nilai Score</Th>
+                    <Th align="right">Hasil Pembagian</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayTests.map((test, index) => (
-                    <tr
-                      key={test.id}
-                      className={index % 2 ? "bg-zinc-50/40" : "bg-white"}
-                    >
-                      <Td>{index + 1}</Td>
-                      <Td>
-                        <span className="font-medium">
-                          {test.test_details?.title ?? "—"}
-                        </span>
-                      </Td>
-                      <Td align="right">
-                        <span className="font-semibold text-sky-700">
-                          {test.grade ?? 0}
-                        </span>
-                      </Td>
-                    </tr>
-                  ))}
+                  {displayTests.map((test, index) => {
+                    const grade = test.grade ?? 0;
+                    const pembagian = test?.test?.pembagian ?? 1;
+                    const divisor = pembagian && pembagian > 0 ? pembagian : 1;
+                    const hasilPembagian = grade / divisor;
+                    
+                    return (
+                      <tr
+                        key={test.id}
+                        className={index % 2 ? "bg-zinc-50/40" : "bg-white"}
+                      >
+                        <Td>{index + 1}</Td>
+                        <Td>
+                          <span className="font-medium">
+                            {test.test_details?.title ?? "—"}
+                          </span>
+                        </Td>
+                        <Td align="right">
+                          <span className="font-semibold text-sky-700">
+                            {grade.toFixed(2)}
+                          </span>
+                        </Td>
+                        <Td align="right">
+                          <span className="font-semibold text-emerald-700">
+                            {hasilPembagian.toFixed(2)}
+                          </span>
+                          {divisor > 1 && (
+                            <span className="ml-1 text-xs text-zinc-400">
+                              (÷{divisor})
+                            </span>
+                          )}
+                        </Td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-sky-100 font-semibold text-zinc-900">
-                    <Td colSpan={2}>Total Score</Td>
+                    <Td colSpan={3}>Total Score</Td>
                     <Td align="right">
-                      <span className="text-sky-700">{totalScore.toFixed(2)}</span>
+                      <span className="text-emerald-700">{totalScore.toFixed(2)}</span>
                     </Td>
                   </tr>
                 </tfoot>
@@ -813,7 +800,7 @@ function TryoutResultsSection({
                 <div className="mt-4 grid grid-cols-2 gap-4 border-t border-zinc-200 pt-4 md:grid-cols-4">
                   <div className="text-center">
                     <p className="text-xs text-zinc-500">Total Score</p>
-                    <p className="mt-1 text-lg font-bold text-sky-700">
+                    <p className="mt-1 text-lg font-bold text-emerald-700">
                       {totalScore.toFixed(2)}
                     </p>
                   </div>
@@ -821,25 +808,35 @@ function TryoutResultsSection({
                     <p className="text-xs text-zinc-500">Rata-rata</p>
                     <p className="mt-1 text-lg font-bold text-indigo-700">
                       {(displayTests.length > 0 
-                        ? displayTests.reduce((sum, test) => sum + (test.grade || 0), 0) / displayTests.length 
+                        ? totalScore / displayTests.length 
                         : 0
                       ).toFixed(2)}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-zinc-500">Tertinggi</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-700">
+                    <p className="mt-1 text-lg font-bold text-sky-700">
                       {displayTests.length > 0
-                        ? Math.max(...displayTests.map(t => t.grade || 0)).toFixed(2)
-                        : 0}
+                        ? Math.max(...displayTests.map(t => {
+                            const grade = t.grade ?? 0;
+                            const pembagian = t?.test?.pembagian ?? 1;
+                            const divisor = pembagian && pembagian > 0 ? pembagian : 1;
+                            return grade / divisor;
+                          })).toFixed(2)
+                        : "0.00"}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-zinc-500">Terendah</p>
                     <p className="mt-1 text-lg font-bold text-amber-700">
                       {displayTests.length > 0
-                        ? Math.min(...displayTests.map(t => t.grade || 0)).toFixed(2)
-                        : 0}
+                        ? Math.min(...displayTests.map(t => {
+                            const grade = t.grade ?? 0;
+                            const pembagian = t?.test?.pembagian ?? 1;
+                            const divisor = pembagian && pembagian > 0 ? pembagian : 1;
+                            return grade / divisor;
+                          })).toFixed(2)
+                        : "0.00"}
                     </p>
                   </div>
                 </div>

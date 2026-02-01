@@ -110,6 +110,16 @@ function dateOnly(input?: string | null): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Normalize API value to number | null (avoid boolean true becoming 1 in number input) */
+function toNumberOrNull(v: unknown): number | null {
+  if (typeof v === "number" && !Number.isNaN(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
+}
+
 export default function TryoutForm({
   initial,
   submitting,
@@ -157,8 +167,8 @@ export default function TryoutForm({
         status: detailData.status ? 1 : 0,
         parent_id: detailData.parent_id ?? null,
         tryout_id: detailData.tryout_id ?? null,
-        group_number: detailData.group_number ?? null,
-        pembagian: detailData.pembagian ?? null,
+        group_number: toNumberOrNull(detailData.group_number),
+        pembagian: toNumberOrNull(detailData.pembagian),
 
         // Logika Sekolah
         all_school: detailData.all_school ? 1 : 0,
@@ -333,6 +343,8 @@ export default function TryoutForm({
       // Jika manual, list pengecualian harus kosong
       payload.school_except_id = [];
     }
+
+    console.log(payload);
 
     await onSubmit(payload);
   };
@@ -740,8 +752,12 @@ export default function TryoutForm({
             <Input
               type="number"
               min={0}
-              value={form.group_number ?? ""}
-              onChange={(e) => setForm({ ...form, group_number: e.target.value ? Number(e.target.value) : null })}
+              value={form.group_number !== null && form.group_number !== undefined ? String(form.group_number) : ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const next = raw === "" ? null : toNumberOrNull(raw);
+                setForm((prev) => ({ ...prev, group_number: next }));
+              }}
               placeholder="Masukkan nomor grup (0 = tidak ada grup)"
               className="border-zinc-200 focus:border-amber-400 focus:ring-amber-100"
             />
@@ -759,8 +775,12 @@ export default function TryoutForm({
             <Input
               type="number"
               min={0}
-              value={form.pembagian ?? ""}
-              onChange={(e) => setForm({ ...form, pembagian: e.target.value ? Number(e.target.value) : null })}
+              value={form.pembagian !== null && form.pembagian !== undefined ? String(form.pembagian) : ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const next = raw === "" ? null : toNumberOrNull(raw);
+                setForm((prev) => ({ ...prev, pembagian: next }));
+              }}
               placeholder="Masukkan nilai pembagi score"
               className="border-zinc-200 focus:border-amber-400 focus:ring-amber-100"
             />
