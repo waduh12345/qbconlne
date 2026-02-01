@@ -522,12 +522,45 @@ function TryoutResultsSection({
     return grouped;
   }, [participantHistory]);
 
-  // Hitung total score dengan mempertimbangkan group_number dan pembagian
+  // Data untuk ditampilkan di tabel (deduplicate by test_id, keep newest by created_at)
+  const displayTests = useMemo(() => {
+    const allTests = filteredGroupedData.flatMap((group) => group.subTests);
+    
+    // Group by test_id and keep only the newest one
+    const testMap = new Map<number, ParticipantHistoryItem>();
+    
+    allTests.forEach((test) => {
+      const testId = test.test_id;
+      if (!testId) return;
+      
+      const existing = testMap.get(testId);
+      if (!existing) {
+        testMap.set(testId, test);
+      } else {
+        // Compare created_at and keep the newest one
+        const existingDate = new Date(existing.created_at || 0).getTime();
+        const currentDate = new Date(test.created_at || 0).getTime();
+        
+        if (currentDate > existingDate) {
+          testMap.set(testId, test);
+        }
+      }
+    });
+    
+    // Convert map values back to array and sort by test title
+    return Array.from(testMap.values()).sort((a, b) => {
+      const titleA = a.test_details?.title ?? "";
+      const titleB = b.test_details?.title ?? "";
+      return titleA.localeCompare(titleB);
+    });
+  }, [filteredGroupedData]);
+
+  // Hitung total score dengan mempertimbangkan group_number dan pembagian (using deduplicated data)
   const totalScore = useMemo(() => {
-    if (filteredGroupedData.length === 0) return 0;
-    const allSubTests = filteredGroupedData.flatMap((group) => group.subTests);
+    if (displayTests.length === 0) return 0;
+    
     // Cek apakah ada group_number yang valid (tidak 0 atau null)
-    const hasValidGroupNumber = allSubTests.some(
+    const hasValidGroupNumber = displayTests.some(
       (test) => {
         const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
         const groupNumber = testDetails?.group_number ?? 0;
@@ -537,11 +570,11 @@ function TryoutResultsSection({
 
     if (!hasValidGroupNumber) {
       // Jika tidak ada group_number valid, gunakan penjumlahan biasa
-      return allSubTests.reduce((sum, test) => sum + (test.grade || 0), 0);
+      return displayTests.reduce((sum, test) => sum + (test.grade || 0), 0);
     }
 
     // Jika ada group_number, hitung berdasarkan kelompok
-    const groupedByNumber = allSubTests.reduce((acc, test) => {
+    const groupedByNumber = displayTests.reduce((acc, test) => {
       const testDetails = test.test_details ?? (test as Record<string, unknown>).test as typeof test.test_details;
       const groupNumber = testDetails?.group_number ?? 0;
       const pembagian = testDetails?.pembagian ?? 1;
@@ -563,12 +596,7 @@ function TryoutResultsSection({
       const groupScore = group.pembagian > 0 ? groupSum / group.pembagian : groupSum;
       return total + groupScore;
     }, 0);
-  }, [filteredGroupedData]);
-
-  // Data untuk ditampilkan di tabel
-  const displayTests = useMemo(() => {
-    return filteredGroupedData.flatMap((group) => group.subTests);
-  }, [filteredGroupedData]);
+  }, [displayTests]);
 
   return (
     <div className="rounded-2xl bg-white/80 ring-1 ring-zinc-100 shadow-sm backdrop-blur">
