@@ -699,9 +699,6 @@ function TryoutResultsSection({
                 <tbody>
                   {displayTests.map((test, index) => {
                     const grade = test.grade ?? 0;
-                    const pembagian = test?.test?.pembagian ?? 1;
-                    const divisor = pembagian && pembagian > 0 ? pembagian : 1;
-                    const hasilPembagian = grade / divisor;
                     
                     return (
                       <tr
