@@ -146,7 +146,7 @@ export const tryoutApi = apiSlice.injectEndpoints({
 
     getParticipantHistoryById: builder.query<ParticipantHistoryItem, number>({
       query: (id) => ({
-        url: `/participant/history-test/${id}&forceRefresh=1`,
+        url: `/participant/history-test/${id}?forceRefresh=1`,
         method: "GET",
       }),
       transformResponse: (res: ItemResponse<ParticipantHistoryItem>) =>

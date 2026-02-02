@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { User2, FileSpreadsheet, FileText } from "lucide-react";
+import { User2, FileSpreadsheet, FileText, NotebookPen } from "lucide-react";
+import Link from "next/link";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
@@ -694,6 +695,7 @@ function TryoutResultsSection({
                     <Th>Nomor</Th>
                     <Th>Sub Test</Th>
                     <Th align="right">Nilai Score</Th>
+                    <Th>Aksi</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -716,13 +718,26 @@ function TryoutResultsSection({
                             {grade.toFixed(2)}
                           </span>
                         </Td>
+                        <Td>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-800"
+                            asChild
+                          >
+                            <Link href={`/student/tryout/score/${test.id}`}>
+                              <NotebookPen className="h-4 w-4" />
+                              Lihat Nilai
+                            </Link>
+                          </Button>
+                        </Td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-sky-100 font-semibold text-zinc-900">
-                    <Td colSpan={2}>Score Akhir IRT</Td>
+                    <Td colSpan={3}>Score Akhir IRT</Td>
                     <Td align="right">
                       <span className="text-emerald-700">{totalScore.toFixed(2)}</span>
                     </Td>
