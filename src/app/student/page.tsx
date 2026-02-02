@@ -694,7 +694,6 @@ function TryoutResultsSection({
                     <Th>Nomor</Th>
                     <Th>Sub Test</Th>
                     <Th align="right">Nilai Score</Th>
-                    <Th align="right">Hasil Pembagian</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -720,23 +719,13 @@ function TryoutResultsSection({
                             {grade.toFixed(2)}
                           </span>
                         </Td>
-                        <Td align="right">
-                          <span className="font-semibold text-emerald-700">
-                            {hasilPembagian.toFixed(2)}
-                          </span>
-                          {divisor > 1 && (
-                            <span className="ml-1 text-xs text-zinc-400">
-                              (÷{divisor})
-                            </span>
-                          )}
-                        </Td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-sky-100 font-semibold text-zinc-900">
-                    <Td colSpan={3}>Total Score</Td>
+                    <Td colSpan={2}>Score Akhir IRT</Td>
                     <Td align="right">
                       <span className="text-emerald-700">{totalScore.toFixed(2)}</span>
                     </Td>
