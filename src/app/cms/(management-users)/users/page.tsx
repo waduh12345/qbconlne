@@ -18,6 +18,7 @@ import {
   useDeleteUserMutation,
   useValidateUserEmailMutation,
   useValidateUserPhoneMutation,
+  useUpdateUserPasswordMutation,
 } from "@/services/users-management.service";
 import type { Users } from "@/types/user";
 import UsersForm from "@/components/form-modal/users-form";
@@ -61,6 +62,8 @@ export default function UsersPage() {
     useValidateUserEmailMutation();
   const [validatePhone, { isLoading: validatingPhone }] =
     useValidateUserPhoneMutation();
+  const [updateUserPassword, { isLoading: updatingPassword }] =
+    useUpdateUserPasswordMutation();
 
   // debounce search → reset ke page 1
   useEffect(() => {
@@ -130,6 +133,25 @@ export default function UsersPage() {
         title: "Gagal memvalidasi nomor HP",
         text: e instanceof Error ? e.message : "Terjadi kesalahan.",
       });
+    }
+  }
+
+  async function handleUpdatePassword(
+    userId: number,
+    payload: { password: string; password_confirmation: string }
+  ) {
+    try {
+      await updateUserPassword({ id: userId, payload }).unwrap();
+      await Swal.fire({ icon: "success", title: "Password diperbarui" });
+      setOpenPassForId(null);
+      void refetch();
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal memperbarui password",
+        text: e instanceof Error ? e.message : "Terjadi kesalahan.",
+      });
+      throw e;
     }
   }
 
@@ -320,16 +342,14 @@ export default function UsersPage() {
           />
         )}
 
-        {/* Password dialog */}
+        {/* Password dialog - ketika password diisi & simpan, hit API update password */}
         {openPassForId != null && (
           <PasswordDialog
             open
             id={openPassForId}
             onClose={() => setOpenPassForId(null)}
-            onSuccess={() => {
-              setOpenPassForId(null);
-              void refetch();
-            }}
+            onConfirm={handleUpdatePassword}
+            isLoading={updatingPassword}
           />
         )}
       </div>

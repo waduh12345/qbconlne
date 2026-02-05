@@ -1,29 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { X } from "lucide-react";
-import { useUpdateUserPasswordMutation } from "@/services/users-management.service";
 
 type Props = {
   open: boolean;
   id: number;
   onClose: () => void;
-  onSuccess: () => void;
+  onConfirm: (
+    userId: number,
+    payload: { password: string; password_confirmation: string }
+  ) => Promise<void>;
+  isLoading?: boolean;
 };
 
 export default function PasswordDialog({
   open,
   id,
   onClose,
-  onSuccess,
+  onConfirm,
+  isLoading = false,
 }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [updatePass, { isLoading }] = useUpdateUserPasswordMutation();
+
+  useEffect(() => {
+    if (open) {
+      setPassword("");
+      setConfirm("");
+    }
+  }, [open, id]);
 
   if (!open) return null;
 
@@ -41,18 +51,12 @@ export default function PasswordDialog({
       return;
     }
     try {
-      await updatePass({
-        id,
-        payload: { password, password_confirmation: confirm },
-      }).unwrap();
-      await Swal.fire({ icon: "success", title: "Password diperbarui" });
-      onSuccess();
-    } catch (e) {
-      await Swal.fire({
-        icon: "error",
-        title: "Gagal memperbarui password",
-        text: e instanceof Error ? e.message : "Terjadi kesalahan.",
-      });
+      await onConfirm(id, { password, password_confirmation: confirm });
+      setPassword("");
+      setConfirm("");
+      onClose();
+    } catch {
+      // Error sudah ditangani di parent (page)
     }
   }
 
@@ -93,7 +97,7 @@ export default function PasswordDialog({
               className="rounded-xl bg-sky-600 hover:bg-sky-700"
               disabled={isLoading}
             >
-              Simpan
+              {isLoading ? "Menyimpan…" : "Simpan"}
             </Button>
           </div>
         </form>

@@ -692,15 +692,23 @@ export default function TryoutPage() {
                                 </ActionIcon>
                               </Link>
 
-                              {t.score_type === "irt" && (
-                                <Link
-                                  href={`/cms/tryout/paket-latihan/${t.id}/irt`}
-                                >
-                                  <ActionIcon label="Penilaian IRT">
+                              {t.score_type === "irt" &&
+                                (t.parent_id != null ? (
+                                  <Link
+                                    href={`/cms/tryout/paket-latihan/${t.id}/irt`}
+                                  >
+                                    <ActionIcon label="Penilaian IRT">
+                                      <BarChart3 className="h-4 w-4" />
+                                    </ActionIcon>
+                                  </Link>
+                                ) : (
+                                  <ActionIcon
+                                    label="Penilaian IRT (hanya untuk sub-tryout)"
+                                    disabled
+                                  >
                                     <BarChart3 className="h-4 w-4" />
                                   </ActionIcon>
-                                </Link>
-                              )}
+                                ))}
 
                               <Link href={`/cms/tryout/rank?test_id=${t.id}`}>
                                 <ActionIcon label="Rank">

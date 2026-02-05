@@ -99,8 +99,6 @@ export default function StudentForm({
   const [name, setName] = React.useState<string>("");
   const [email, setEmail] = React.useState<string>("");
   const [phone, setPhone] = React.useState<string>("");
-  const [password, setPassword] = React.useState<string>("");
-  const [passwordConf, setPasswordConf] = React.useState<string>("");
   const [status, setStatus] = React.useState<boolean>(true);
   // 💡 State baru untuk is_premium
   const [isPremium, setIsPremium] = React.useState<boolean>(false); 
@@ -115,8 +113,6 @@ export default function StudentForm({
     setStatus(Boolean(student.status));
     // 💡 Sinkronisasi isPremium dari data user
     setIsPremium(Boolean(student.user?.is_premium));
-    setPassword("");
-    setPasswordConf("");
   }, [open, isEdit, student]);
 
   React.useEffect(() => {
@@ -126,8 +122,6 @@ export default function StudentForm({
       setName("");
       setEmail("");
       setPhone("");
-      setPassword("");
-      setPasswordConf("");
       setStatus(true);
       setIsPremium(false); // Reset isPremium saat create
     }
@@ -193,43 +187,10 @@ export default function StudentForm({
     // Perbaikan: Nomor HP tidak wajib diisi jika edit dan dikosongkan
     // Jika edit, phone diisi null jika inputnya kosong
     const finalPhone = phone.trim() ? phone.trim() : null;
-    
-    if (!isEdit) {
-      if (!password) {
-        void Swal.fire({ icon: "warning", title: "Password wajib diisi" });
-        return;
-      }
-      if (password !== passwordConf) {
-        void Swal.fire({
-          icon: "warning",
-          title: "Konfirmasi password tidak cocok",
-        });
-        return;
-      }
-    } else if (password || passwordConf) {
-      if (password !== passwordConf) {
-        void Swal.fire({
-          icon: "warning",
-          title: "Konfirmasi password tidak cocok",
-        });
-        return;
-      }
-    }
 
     try {
       if (isEdit) {
-        const payload: {
-          school_id?: number;
-          class_id?: number;
-          name?: string;
-          email?: string;
-          phone?: string | null;
-          status?: boolean;
-          role_id?: number;
-          password?: string;
-          password_confirmation?: string;
-          is_premium?: number; // Tambahkan ke payload
-        } = {
+        const payload = {
           school_id: schoolId ?? undefined,
           class_id: classId ?? undefined,
           name: name.trim(),
@@ -237,27 +198,25 @@ export default function StudentForm({
           phone: finalPhone,
           status,
           role_id: ROLE_STUDENT_ID,
-          is_premium: isPremium ? 1 : 0, // Kirim sebagai 1 atau 0
+          is_premium: isPremium ? 1 : 0,
         };
-        if (password) {
-          payload.password = password;
-          payload.password_confirmation = passwordConf;
-        }
 
         await updateStudent({ id: studentId as number, payload }).unwrap();
         onSuccess("update");
       } else {
+        // Password tidak diinput user; backend bisa pakai default / kirim link reset
+        const randomPass = `Siswa${Date.now().toString(36)}!`;
         const payload = {
           school_id: schoolId!,
           class_id: classId!,
           name: name.trim(),
           email: email.trim(),
-          password,
-          password_confirmation: passwordConf,
+          password: randomPass,
+          password_confirmation: randomPass,
           status,
           role_id: ROLE_STUDENT_ID,
           phone: finalPhone,
-          is_premium: isPremium ? 1 : 0, // Kirim sebagai 1 atau 0
+          is_premium: isPremium ? 1 : 0,
         };
         await createStudent(payload).unwrap();
         onSuccess("create");
@@ -379,40 +338,6 @@ export default function StudentForm({
                   required={!isEdit}
                   placeholder="08xxxxxxxxxx"
                 />
-              </div>
-
-              {/* password */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Password{isEdit ? " (isi jika ganti)" : ""}</Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    required={!isEdit}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={
-                      isEdit
-                        ? "Biarkan kosong jika tidak ganti"
-                        : "Min. 6 karakter"
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Konfirmasi Password{isEdit ? " (isi jika ganti)" : ""}
-                  </Label>
-                  <Input
-                    type="password"
-                    value={passwordConf}
-                    required={!isEdit}
-                    onChange={(e) => setPasswordConf(e.target.value)}
-                    placeholder={
-                      isEdit
-                        ? "Biarkan kosong jika tidak ganti"
-                        : "Ulangi password"
-                    }
-                  />
-                </div>
               </div>
 
               {/* status */}
