@@ -205,7 +205,7 @@ export default function StudentForm({
         onSuccess("update");
       } else {
         // Password tidak diinput user; backend bisa pakai default / kirim link reset
-        const randomPass = `Siswa${Date.now().toString(36)}!`;
+        const randomPass = `qubic2026`;
         const payload = {
           school_id: schoolId!,
           class_id: classId!,
