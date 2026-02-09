@@ -150,6 +150,28 @@ export const formatDateForInput = (dateString?: string | null) => {
   return d.isValid() ? d.format("YYYY-MM-DD") : "";
 };
 
+export const formatDateTimeForInput = (dateString?: string | null) => {
+  if (!dateString) return "";
+  const str = String(dateString).trim();
+
+  let d = dayjs(str);
+
+  // Jika mengandung zona waktu (Z atau +07:00), konversi ke Jakarta
+  if (hasZone(str)) {
+    const safe = normalizeIsoFraction(str);
+    d = dayjs.utc(safe).tz("Asia/Jakarta");
+  }
+
+  // Format datetime-local membutuhkan: YYYY-MM-DDTHH:mm
+  return d.isValid() ? d.format("YYYY-MM-DDTHH:mm") : "";
+};
+
+// Helper untuk kirim kembali ke API (mengganti T menjadi spasi jika diperlukan API)
+export const formatDateTimeForApi = (dateString: string) => {
+  if (!dateString) return null;
+  return dateString.replace("T", " ");
+};
+
 export const formatProgress = (value: number | string) => {
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "0";

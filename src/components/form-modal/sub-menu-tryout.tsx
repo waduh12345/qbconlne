@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-// Pastikan import path ini benar
+import {  formatDateTimeForInput } from "@/lib/format-utils";
+
 import {
   Tryout,
   TryoutPayload,
@@ -20,19 +21,16 @@ import {
 
 const SunEditor = dynamic(() => import("suneditor-react"), { ssr: false });
 
-const toInputDate = (dateStr?: string) => {
-  if (!dateStr) return "";
-  return dateStr.substring(0, 16).replace(" ", "T");
-};
-
-const toApiDate = (dateStr: string) => {
+/** * Helper internal untuk mengubah format datetime-local (T)
+ * menjadi format yang diterima API (spasi)
+ */
+const toApiDateTime = (dateStr: string) => {
+  if (!dateStr) return null;
   return dateStr.replace("T", " ");
 };
 
-// ✅ Export interface ini agar bisa di-hover/dicek di parent, meski tidak wajib diimport
 export interface TryoutFormProps {
   initialData?: Tryout | null;
-  // Menerima fungsi biasa (v: boolean) => void ATAU Dispatch SetStateAction
   onOpenChange: ((open: boolean) => void) | Dispatch<SetStateAction<boolean>>;
   onSuccess: () => void;
 }
@@ -59,8 +57,14 @@ export default function TryoutForm({
     if (initialData) {
       setTitle(initialData.title);
       setSubTitle(initialData.sub_title ?? "");
-      setStartDate(toInputDate(initialData.start_date));
-      setEndDate(toInputDate(initialData.end_date));
+
+      /** * Menggunakan formatDateTimeForInput agar jika API mengirimkan UTC (akhiran Z),
+       * dayjs akan mengonversinya ke Asia/Jakarta sebelum ditampilkan di input.
+       * Ini mencegah tanggal mundur 1 hari.
+       */
+      setStartDate(formatDateTimeForInput(initialData.start_date));
+      setEndDate(formatDateTimeForInput(initialData.end_date));
+
       setDescription(initialData.description ?? "");
       setStatus(initialData.status);
     } else {
@@ -84,8 +88,11 @@ export default function TryoutForm({
     const payload: TryoutPayload = {
       title,
       sub_title: subTitle || null,
-      start_date: toApiDate(startDate),
-      end_date: toApiDate(endDate),
+      /**
+       * Mengembalikan format 'T' kembali menjadi spasi untuk kebutuhan database API
+       */
+      start_date: toApiDateTime(startDate) as string,
+      end_date: toApiDateTime(endDate) as string,
       description: description || null,
       status: status ? 1 : 0,
     };
