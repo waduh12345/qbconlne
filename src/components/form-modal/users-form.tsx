@@ -61,24 +61,37 @@ export default function UsersForm({
   const roles: Role[] = Array.isArray(rolesResp)
     ? rolesResp
     : Array.isArray((rolesResp as { data?: Role[] })?.data)
-    ? ((rolesResp as { data?: Role[] }).data as Role[])
-    : [];
+      ? ((rolesResp as { data?: Role[] }).data as Role[])
+      : [];
+
+  // 1. Helper Format (Visual)
+  const formatPhoneDisplay = (value: string) => {
+    const cleaned = value.replace(/\D/g, ""); // Hapus non-digit
+
+    if (cleaned.length <= 4) return cleaned;
+    if (cleaned.length <= 8) {
+      return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+    }
+    // Max digit display (misal 14 digit)
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 14)}`;
+  };
 
   const initial: FormState = useMemo(
     () => ({
       name: detail?.name ?? "",
       email: detail?.email ?? "",
-      phone: detail?.phone ?? "",
+      // 2. Format data dari DB saat load awal (Edit Mode)
+      phone: formatPhoneDisplay(detail?.phone ?? ""),
       password: "",
       password_confirmation: "",
       status: true,
     }),
-    [detail]
+    [detail],
   );
 
   const [form, setForm] = useState<FormState>(initial);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(
-    defaultRoleId ?? null
+    defaultRoleId ?? null,
   );
 
   // kalau edit → isikan form dan role
@@ -124,6 +137,10 @@ export default function UsersForm({
       return;
     }
 
+    // 3. Bersihkan strip (-) sebelum kirim ke API
+    const cleanPhone = form.phone.replace(/\D/g, "");
+    const finalPhone = cleanPhone || null;
+
     try {
       if (isEdit && id) {
         await updateUser({
@@ -131,9 +148,9 @@ export default function UsersForm({
           payload: {
             name: form.name,
             email: form.email,
-            phone: form.phone || null,
+            phone: finalPhone, // Gunakan yang bersih
             status: form.status ? 1 : 0,
-            role_id: selectedRoleId, // <-- kirim role dipilih
+            role_id: selectedRoleId,
           },
         }).unwrap();
         await Swal.fire({ icon: "success", title: "User diperbarui" });
@@ -141,8 +158,8 @@ export default function UsersForm({
         await createUser({
           name: form.name,
           email: form.email,
-          phone: form.phone || "",
-          role_id: selectedRoleId, // <-- sekarang dari combobox
+          phone: finalPhone || "", // Gunakan yang bersih
+          role_id: selectedRoleId,
           status: form.status ? 1 : 0,
           password: form.password,
           password_confirmation: form.password_confirmation,
@@ -192,12 +209,19 @@ export default function UsersForm({
                 placeholder="email@domain.com"
               />
             </div>
+
+            {/* Input Phone Updated */}
             <div>
               <Label>Nomor HP</Label>
               <Input
                 value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="08xxxx"
+                onChange={(e) => {
+                  // Format saat mengetik
+                  const formatted = formatPhoneDisplay(e.target.value);
+                  set("phone", formatted);
+                }}
+                placeholder="08xx-xxxx-xxxx"
+                maxLength={16}
               />
             </div>
           </div>

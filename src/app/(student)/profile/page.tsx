@@ -15,6 +15,7 @@ import {
 
 import { useGetMeQuery } from "@/services/auth.service";
 import type { User, Role } from "@/types/user";
+import { formatPhoneNumber } from "@/lib/format-utils";
 
 /** ====== Extra types dari contoh /me (ditambah nim, dll supaya aman) ====== */
 type School = {
@@ -338,7 +339,7 @@ export default function ProfilePage() {
                 </Row>
                 <Row label="No. HP" icon={<Phone className="h-4 w-4" />}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span>{me.phone ?? "—"}</span>
+                    <span>{formatPhoneNumber(me.phone) ?? "—"}</span>
                     <VerifiedBadge ok={Boolean(me.phone_verified_at)} />
                   </div>
                 </Row>

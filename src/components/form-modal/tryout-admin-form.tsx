@@ -40,6 +40,7 @@ import {
   useGetTestByIdQuery,
 } from "@/services/tryout/test.service";
 import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
+import { formatDateForInput } from "@/lib/format-utils";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = "per_test" | "per_category";
@@ -157,8 +158,10 @@ export default function TryoutForm({
         assessment_type: detailData.assessment_type as AssessmentType,
         timer_type: detailData.timer_type as TimerType,
         score_type: (detailData.score_type as ScoreType) ?? "default",
-        start_date: dateOnly(detailData.start_date),
-        end_date: dateOnly(detailData.end_date),
+        // start_date: dateOnly(detailData.start_date),
+        // end_date: dateOnly(detailData.end_date),
+        start_date: formatDateForInput(detailData.start_date),
+        end_date: formatDateForInput(detailData.end_date),
         code: detailData.code ?? "",
         max_attempts: detailData.max_attempts ?? "",
         is_graded: detailData.is_graded,
@@ -181,8 +184,10 @@ export default function TryoutForm({
         setForm((prev) => ({
           ...prev,
           ...initial,
-          start_date: dateOnly(initial.start_date),
-          end_date: dateOnly(initial.end_date),
+          // start_date: dateOnly(initial.start_date),
+          // end_date: dateOnly(initial.end_date),
+          start_date: formatDateForInput(initial.start_date),
+          end_date: formatDateForInput(initial.end_date),
         }));
       }
     }
@@ -410,7 +415,9 @@ export default function TryoutForm({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Kategori Tryout */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-zinc-700">Kategori Tryout</Label>
+            <Label className="text-sm font-medium text-zinc-700">
+              Kategori Tryout
+            </Label>
             <Combobox
               value={form.tryout_id}
               onChange={(value) => setForm({ ...form, tryout_id: value })}
@@ -435,9 +442,17 @@ export default function TryoutForm({
                 setForm((prev) => ({
                   ...prev,
                   parent_id: value,
-                  start_date: selectedParent ? dateOnly(selectedParent.start_date) : prev.start_date,
-                  end_date: selectedParent ? dateOnly(selectedParent.end_date) : prev.end_date,
-                  status: selectedParent ? (selectedParent.status ? 1 : 0) : prev.status,
+                  start_date: selectedParent
+                    ? dateOnly(selectedParent.start_date)
+                    : prev.start_date,
+                  end_date: selectedParent
+                    ? dateOnly(selectedParent.end_date)
+                    : prev.end_date,
+                  status: selectedParent
+                    ? selectedParent.status
+                      ? 1
+                      : 0
+                    : prev.status,
                 }));
               }}
               onSearchChange={setParentSearch}
@@ -464,7 +479,9 @@ export default function TryoutForm({
 
           {/* Sub Judul */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-zinc-700">Sub Judul</Label>
+            <Label className="text-sm font-medium text-zinc-700">
+              Sub Judul
+            </Label>
             <Input
               value={form.sub_title ?? ""}
               onChange={(e) => setForm({ ...form, sub_title: e.target.value })}
@@ -555,7 +572,10 @@ export default function TryoutForm({
               {form.school_id.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   {form.school_id.map((id) => (
-                    <Badge key={id} className="bg-sky-500 hover:bg-sky-600 transition-colors">
+                    <Badge
+                      key={id}
+                      className="bg-sky-500 hover:bg-sky-600 transition-colors"
+                    >
                       <SchoolIcon className="mr-1 h-3 w-3" />
                       {schoolMap.get(id) ?? id}
                       <X
@@ -600,7 +620,11 @@ export default function TryoutForm({
               {form.school_except_id.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   {form.school_except_id.map((id) => (
-                    <Badge key={id} variant="destructive" className="transition-colors">
+                    <Badge
+                      key={id}
+                      variant="destructive"
+                      className="transition-colors"
+                    >
                       <Ban className="mr-1 h-3 w-3" />
                       {schoolMap.get(id) ?? id}
                       <X
@@ -628,12 +652,16 @@ export default function TryoutForm({
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {/* Timer Type */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-zinc-700">Timer Type</Label>
+            <Label className="text-sm font-medium text-zinc-700">
+              Timer Type
+            </Label>
             <Select
               value={form.timer_type}
-              onValueChange={(v) => setForm((prev) => ({ ...prev, timer_type: v as TimerType }))}
+              onValueChange={(v) =>
+                setForm((prev) => ({ ...prev, timer_type: v as TimerType }))
+              }
             >
-              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100">
+              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100 w-full">
                 <SelectValue placeholder="Pilih timer type" />
               </SelectTrigger>
               <SelectContent>
@@ -645,12 +673,16 @@ export default function TryoutForm({
 
           {/* Score Type */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-zinc-700">Score Type</Label>
+            <Label className="text-sm font-medium text-zinc-700">
+              Score Type
+            </Label>
             <Select
               value={form.score_type}
-              onValueChange={(v) => setForm((prev) => ({ ...prev, score_type: v as ScoreType }))}
+              onValueChange={(v) =>
+                setForm((prev) => ({ ...prev, score_type: v as ScoreType }))
+              }
             >
-              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100">
+              <SelectTrigger className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100 w-full">
                 <SelectValue placeholder="Pilih score type" />
               </SelectTrigger>
               <SelectContent>
@@ -663,24 +695,35 @@ export default function TryoutForm({
           {/* Total Time */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-zinc-700">
-              Total Time (detik) {form.timer_type === "per_test" ? <span className="text-red-500">*</span> : <span className="text-zinc-400">(diabaikan)</span>}
+              Total Time (detik){" "}
+              {form.timer_type === "per_test" ? (
+                <span className="text-red-500">*</span>
+              ) : (
+                <span className="text-zinc-400">(diabaikan)</span>
+              )}
             </Label>
             <Input
               type="number"
               disabled={form.timer_type !== "per_test"}
               value={form.timer_type === "per_test" ? form.total_time : 0}
-              onChange={(e) => setForm({ ...form, total_time: Number(e.target.value) })}
+              onChange={(e) =>
+                setForm({ ...form, total_time: Number(e.target.value) })
+              }
               className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100 disabled:bg-zinc-100"
             />
           </div>
 
           {/* Pass Grade */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-zinc-700">Pass Grade</Label>
+            <Label className="text-sm font-medium text-zinc-700">
+              Pass Grade
+            </Label>
             <Input
               type="number"
               value={form.pass_grade}
-              onChange={(e) => setForm({ ...form, pass_grade: Number(e.target.value) })}
+              onChange={(e) =>
+                setForm({ ...form, pass_grade: Number(e.target.value) })
+              }
               className="border-zinc-200 focus:border-violet-400 focus:ring-violet-100"
             />
           </div>
@@ -695,7 +738,10 @@ export default function TryoutForm({
               id="graded"
               className="data-[state=checked]:bg-violet-600"
             />
-            <Label htmlFor="graded" className="text-sm text-zinc-700 cursor-pointer">
+            <Label
+              htmlFor="graded"
+              className="text-sm text-zinc-700 cursor-pointer"
+            >
               Active (Graded)
             </Label>
           </div>
@@ -703,10 +749,15 @@ export default function TryoutForm({
             <Switch
               id="shuffle"
               checked={Boolean(form.shuffle_questions)}
-              onCheckedChange={(v) => setForm({ ...form, shuffle_questions: v })}
+              onCheckedChange={(v) =>
+                setForm({ ...form, shuffle_questions: v })
+              }
               className="data-[state=checked]:bg-violet-600"
             />
-            <Label htmlFor="shuffle" className="text-sm text-zinc-700 cursor-pointer">
+            <Label
+              htmlFor="shuffle"
+              className="text-sm text-zinc-700 cursor-pointer"
+            >
               Shuffle Questions
             </Label>
           </div>
@@ -718,7 +769,10 @@ export default function TryoutForm({
                 id="status-switch"
                 className="data-[state=checked]:bg-emerald-600"
               />
-              <Label htmlFor="status-switch" className="text-sm text-zinc-700 cursor-pointer">
+              <Label
+                htmlFor="status-switch"
+                className="text-sm text-zinc-700 cursor-pointer"
+              >
                 Status Aktif
               </Label>
             </div>
@@ -739,7 +793,8 @@ export default function TryoutForm({
         </div>
 
         <p className="mb-4 text-sm text-zinc-500">
-          Jika test ini merupakan bagian dari kelompok test dengan perhitungan score khusus, atur nomor grup dan pembagi score di sini.
+          Jika test ini merupakan bagian dari kelompok test dengan perhitungan
+          score khusus, atur nomor grup dan pembagi score di sini.
         </p>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -752,7 +807,11 @@ export default function TryoutForm({
             <Input
               type="number"
               min={0}
-              value={form.group_number !== null && form.group_number !== undefined ? String(form.group_number) : ""}
+              value={
+                form.group_number !== null && form.group_number !== undefined
+                  ? String(form.group_number)
+                  : ""
+              }
               onChange={(e) => {
                 const raw = e.target.value;
                 const next = raw === "" ? null : toNumberOrNull(raw);
@@ -775,7 +834,11 @@ export default function TryoutForm({
             <Input
               type="number"
               min={0}
-              value={form.pembagian !== null && form.pembagian !== undefined ? String(form.pembagian) : ""}
+              value={
+                form.pembagian !== null && form.pembagian !== undefined
+                  ? String(form.pembagian)
+                  : ""
+              }
               onChange={(e) => {
                 const raw = e.target.value;
                 const next = raw === "" ? null : toNumberOrNull(raw);
@@ -785,7 +848,8 @@ export default function TryoutForm({
               className="border-zinc-200 focus:border-amber-400 focus:ring-amber-100"
             />
             <p className="text-xs text-zinc-400">
-              Total score grup akan dibagi dengan nilai ini untuk mendapatkan score akhir grup.
+              Total score grup akan dibagi dengan nilai ini untuk mendapatkan
+              score akhir grup.
             </p>
           </div>
         </div>
@@ -794,7 +858,8 @@ export default function TryoutForm({
         {(form.group_number ?? 0) > 0 && (
           <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 animate-in fade-in duration-300">
             <p className="text-sm text-amber-800">
-              <strong>Info:</strong> Test ini akan dikelompokkan ke dalam <strong>Grup {form.group_number}</strong>
+              <strong>Info:</strong> Test ini akan dikelompokkan ke dalam{" "}
+              <strong>Grup {form.group_number}</strong>
               {form.pembagian ? ` dengan pembagi score ${form.pembagian}` : ""}.
             </p>
           </div>
@@ -819,29 +884,37 @@ export default function TryoutForm({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Tanggal Mulai */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-zinc-700">
-                Tanggal Mulai {form.score_type === "irt" && <span className="text-red-500">*</span>}
-              </Label>
+              <Label>Tanggal Mulai</Label>
               <Input
                 type="date"
                 value={form.start_date || ""}
-                onChange={(e) => setForm({ ...form, start_date: dateOnly(e.target.value) })}
+                onChange={
+                  (e) =>
+                    setForm({
+                      ...form,
+                      start_date: formatDateForInput(e.target.value),
+                    }) // Ganti di sini
+                }
                 required={form.score_type === "irt"}
-                className="border-zinc-200 focus:border-blue-400 focus:ring-blue-100"
+                className="..."
               />
             </div>
 
             {/* Tanggal Selesai */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-zinc-700">
-                Tanggal Selesai {form.score_type === "irt" && <span className="text-red-500">*</span>}
-              </Label>
+              <Label>Tanggal Selesai</Label>
               <Input
                 type="date"
                 value={form.end_date || ""}
-                onChange={(e) => setForm({ ...form, end_date: dateOnly(e.target.value) })}
+                onChange={
+                  (e) =>
+                    setForm({
+                      ...form,
+                      end_date: formatDateForInput(e.target.value),
+                    }) // Ganti di sini
+                }
                 required={form.score_type === "irt"}
-                className="border-zinc-200 focus:border-blue-400 focus:ring-blue-100"
+                className="..."
               />
             </div>
           </div>
@@ -886,8 +959,8 @@ export default function TryoutForm({
         <Button variant="outline" onClick={onCancel} className="px-6">
           Batal
         </Button>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           disabled={submitting}
           className="bg-sky-600 hover:bg-sky-700 px-8"
         >

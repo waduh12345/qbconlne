@@ -78,6 +78,7 @@ import StudentCardModal, {
   StudentLite,
 } from "@/components/modal/student-card-modal";
 import StudentCardAllModal from "@/components/modal/student-card-all-modal";
+import { formatPhoneNumber } from "@/lib/format-utils";
 
 const ROLE_STUDENT_ID = 3;
 
@@ -796,7 +797,7 @@ export default function StudentsPage() {
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                            {u.phone ?? "-"}
+                            {formatPhoneNumber(u.phone)}
                           </div>
                         </TableCell>
                         <TableCell>
