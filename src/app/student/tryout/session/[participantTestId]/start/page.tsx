@@ -1,9 +1,10 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Loader2 } from "lucide-react";
 import {
   useGetParticipantHistoryByIdQuery,
   useGetActiveCategoryQuery,
@@ -20,6 +21,18 @@ function formatDurationFromSeconds(seconds?: number) {
   return `${h} jam${m ? ` ${m} menit` : ""}`;
 }
 
+/** Parse participantTestId dengan aman; return null jika invalid (hindari NaN / error di berbagai browser) */
+function parseParticipantTestId(
+  raw: string | string[] | undefined
+): number | null {
+  if (raw == null) return null;
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof s !== "string" || s.trim() === "") return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 1 || n !== Math.floor(n)) return null;
+  return n;
+}
+
 /** Daftar aturan/larangan yang akan ditampilkan di halaman & modal konfirmasi */
 const RULES: readonly string[] = [
   "Jangan refresh atau menutup tab selama ujian berlangsung",
@@ -31,17 +44,27 @@ const RULES: readonly string[] = [
 ];
 
 export default function StartTryoutPage() {
-  const params = useParams<{ participantTestId: string }>();
-  const participantTestId = Number(params.participantTestId);
+  const params = useParams<{ participantTestId?: string }>();
+  const participantTestId = useMemo(
+    () => parseParticipantTestId(params?.participantTestId),
+    [params?.participantTestId]
+  );
   const router = useRouter();
 
-  const { data: detail } = useGetParticipantHistoryByIdQuery(participantTestId);
-  const { data: activeCategory, isFetching } =
-    useGetActiveCategoryQuery(participantTestId);
+  const { data: detail, isFetching: loadingDetail } =
+    useGetParticipantHistoryByIdQuery(participantTestId ?? 0, {
+      skip: participantTestId == null,
+    });
+  const { data: activeCategory, isFetching: loadingCategory } =
+    useGetActiveCategoryQuery(participantTestId ?? 0, {
+      skip: participantTestId == null,
+    });
+  const isFetching = loadingDetail || loadingCategory;
   const [continueCategory, { isLoading: starting }] =
     useContinueCategoryMutation();
 
   async function handleStart() {
+    if (participantTestId == null) return;
     if (!activeCategory) {
       await Swal.fire({
         icon: "info",
@@ -89,6 +112,22 @@ export default function StartTryoutPage() {
   }
 
   const isResume = !!activeCategory;
+
+  // ID invalid atau belum tersedia (SSR/hydration di beberapa browser) → tampilkan loading, hindari error
+  if (participantTestId == null) {
+    return (
+      <div className="flex min-h-[200px] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Memuat sesi ujian...</p>
+        <Button variant="outline" asChild>
+          <Link href="/tryout">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Kembali ke Tryout
+          </Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -144,6 +183,7 @@ export default function StartTryoutPage() {
             className="rounded-xl bg-sky-600 px-6 hover:bg-sky-700"
             onClick={handleStart}
             disabled={isFetching || starting || !activeCategory}
+            type="button"
           >
             {isResume ? (
               <>
