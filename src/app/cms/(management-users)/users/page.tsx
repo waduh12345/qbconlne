@@ -24,6 +24,7 @@ import type { Users } from "@/types/user";
 import UsersForm from "@/components/form-modal/users-form";
 import PasswordDialog from "@/components/modal/users-password-dialog";
 import { IconPhoneCheck } from "@tabler/icons-react";
+import { formatPhoneNumber } from "@/lib/format-utils";
 
 const PER_PAGE = 10;
 // kalau mau, kamu bisa hilangkan ini dan jangan kirim ke query
@@ -232,7 +233,7 @@ export default function UsersPage() {
                         <div className="font-medium">{u.name}</div>
                       </td>
                       <td className="px-4 py-3">{u.email}</td>
-                      <td className="px-4 py-3">{u.phone ?? "-"}</td>
+                      <td className="px-4 py-3">{formatPhoneNumber(u.phone) ?? "-"}</td>
                       <td className="px-4 py-3">
                         {u.roles?.map((r) => r.name).join(", ") || "-"}
                       </td>

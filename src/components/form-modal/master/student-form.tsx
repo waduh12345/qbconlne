@@ -26,6 +26,7 @@ import {
   useGetStudentByIdQuery,
   useUpdateStudentMutation,
 } from "@/services/admin/student.service";
+import { formatPhoneDisplay } from "@/lib/format-utils";
 
 type Mode = "create" | "update";
 
@@ -109,7 +110,8 @@ export default function StudentForm({
     setClassId(student.class_id ?? null);
     setName(student.user?.name ?? "");
     setEmail(student.user?.email ?? "");
-    setPhone(student.user?.phone ?? ("" as string));
+    const rawPhone = student.user?.phone ?? "";
+    setPhone(formatPhoneDisplay(rawPhone));
     setStatus(Boolean(student.status));
     // 💡 Sinkronisasi isPremium dari data user
     setIsPremium(Boolean(student.user?.is_premium));
@@ -186,7 +188,12 @@ export default function StudentForm({
     
     // Perbaikan: Nomor HP tidak wajib diisi jika edit dan dikosongkan
     // Jika edit, phone diisi null jika inputnya kosong
-    const finalPhone = phone.trim() ? phone.trim() : null;
+    // const finalPhone = phone.trim() ? phone.trim() : null;
+
+    const cleanPhone = phone.replace(/\D/g, "");
+
+    // Cek jika kosong setelah dibersihkan
+    const finalPhone = cleanPhone ? cleanPhone : null;
 
     try {
       if (isEdit) {
@@ -331,12 +338,18 @@ export default function StudentForm({
 
               {/* phone */}
               <div className="space-y-2">
-                <Label>No. HP{isEdit ? " (Kosongkan jika tidak ada)" : ""}</Label>
+                <Label>
+                  No. HP{isEdit ? " (Kosongkan jika tidak ada)" : ""}
+                </Label>
                 <Input
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const formatted = formatPhoneDisplay(e.target.value);
+                    setPhone(formatted);
+                  }}
                   required={!isEdit}
-                  placeholder="08xxxxxxxxxx"
+                  placeholder="08xx-xxxx-xxxx"
+                  maxLength={16}
                 />
               </div>
 
@@ -350,20 +363,21 @@ export default function StudentForm({
                 </div>
                 <Switch checked={status} onCheckedChange={setStatus} />
               </div>
-              
+
               {/* 💡 is_premium (Posisi dipaling bawah sebelum tombol aksi) */}
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <div className="text-sm font-medium">Status Premium</div>
                   <div className="text-xs text-muted-foreground">
-                    Atur status akses premium siswa (Tidak Aktif: Free, Aktif: Premium)
+                    Atur status akses premium siswa (Tidak Aktif: Free, Aktif:
+                    Premium)
                   </div>
                 </div>
-                <Switch 
-                    checked={isPremium} 
-                    onCheckedChange={setIsPremium} 
-                    // Tampilkan label Free/Premium secara visual
-                    aria-label={isPremium ? "Premium (1)" : "Free (0)"}
+                <Switch
+                  checked={isPremium}
+                  onCheckedChange={setIsPremium}
+                  // Tampilkan label Free/Premium secara visual
+                  aria-label={isPremium ? "Premium (1)" : "Free (0)"}
                 />
               </div>
 

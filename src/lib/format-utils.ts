@@ -12,7 +12,7 @@ export const formatRupiah = (value: number | string) => {
       ? parseInt(
           // buang ",000" jika ada, ambil digit saja
           value.replace(/,000$/, "").replace(/\D/g, ""),
-          10
+          10,
         )
       : value;
 
@@ -74,12 +74,12 @@ export function formatDate(date?: string | Date | null) {
   return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
 }
 export const displayDate = (dateString?: string | null) => {
-  if (!dateString) return "Tanggal tidak valid";
+  if (!dateString) return "-";
 
   const parsed = dayjs(
     dateString,
     ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY"],
-    true
+    true,
   );
 
   const date = parsed.isValid() ? parsed : dayjs(dateString);
@@ -141,7 +141,7 @@ export const formatDateForInput = (dateString?: string | null) => {
       "YYYY-MM-DD HH:mm:ss.SSSSSS",
       "YYYY-MM-DDTHH:mm:ss.SSSSSS",
     ],
-    true
+    true,
   );
   if (dt.isValid()) return dt.format("YYYY-MM-DD");
 
@@ -150,17 +150,67 @@ export const formatDateForInput = (dateString?: string | null) => {
   return d.isValid() ? d.format("YYYY-MM-DD") : "";
 };
 
+export const formatDateTimeForInput = (dateString?: string | null) => {
+  if (!dateString) return "";
+  const str = String(dateString).trim();
+
+  let d = dayjs(str);
+
+  // Jika mengandung zona waktu (Z atau +07:00), konversi ke Jakarta
+  if (hasZone(str)) {
+    const safe = normalizeIsoFraction(str);
+    d = dayjs.utc(safe).tz("Asia/Jakarta");
+  }
+
+  // Format datetime-local membutuhkan: YYYY-MM-DDTHH:mm
+  return d.isValid() ? d.format("YYYY-MM-DDTHH:mm") : "";
+};
+
+// Helper untuk kirim kembali ke API (mengganti T menjadi spasi jika diperlukan API)
+export const formatDateTimeForApi = (dateString: string) => {
+  if (!dateString) return null;
+  return dateString.replace("T", " ");
+};
+
 export const formatProgress = (value: number | string) => {
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "0";
   return parseFloat(num.toFixed(3)); // batasi 3 angka di belakang koma
 };
 
+export function formatPhoneNumber(
+  phone: string | number | null | undefined,
+): string {
+  if (!phone) return "-";
 
-export const stripHtml = (html: string) => {
-  if (!html) return "";
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  const text = div.textContent || div.innerText || "";
-  return text.replace(/\s+/g, " ").trim();
+  // 1. Bersihkan karakter non-angka
+  const str = String(phone).replace(/\D/g, "");
+
+  // 2. Jika kosong
+  if (str.length === 0) return "-";
+
+  // 3. Logika Slicing (Fleksibel untuk segala panjang digit)
+  // 0-4 digit: Biarkan polos (misal: 1234)
+  if (str.length <= 4) return str;
+
+  // 5-8 digit: Potong jadi 2 bagian (misal: 1234-5678)
+  if (str.length <= 8) {
+    return `${str.slice(0, 4)}-${str.slice(4)}`;
+  }
+
+  // > 8 digit: Potong jadi 3 bagian (misal: 0812-3456-7890)
+  // Ini akan menangani 10, 11, 12, 13, dst digit dengan aman
+  return `${str.slice(0, 4)}-${str.slice(4, 8)}-${str.slice(8, 15)}`;
+}
+export const formatPhoneDisplay = (value: string) => {
+  const cleaned = value.replace(/\D/g, "");
+
+  if (cleaned.length <= 4) return cleaned;
+
+  if (cleaned.length <= 8) {
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+  }
+
+  // Jika > 8 digit, format: XXXX-XXXX-XXXX (max 13-14 digit umumnya)
+  return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 14)}`;
 };
