@@ -35,9 +35,12 @@ export default function StartTryoutPage() {
   const participantTestId = Number(params.participantTestId);
   const router = useRouter();
 
-  const { data: detail } = useGetParticipantHistoryByIdQuery(participantTestId);
+  const skipQuery = Number.isNaN(participantTestId);
+  const { data: detail } = useGetParticipantHistoryByIdQuery(participantTestId, {
+    skip: skipQuery,
+  });
   const { data: activeCategory, isFetching } =
-    useGetActiveCategoryQuery(participantTestId);
+    useGetActiveCategoryQuery(participantTestId, { skip: skipQuery });
   const [continueCategory, { isLoading: starting }] =
     useContinueCategoryMutation();
 
@@ -113,18 +116,18 @@ export default function StartTryoutPage() {
           </h2>
 
           <div className="mt-5 grid gap-4 rounded-xl bg-white p-5 text-zinc-900">
-            <Row label="Nama Ujian" value={detail?.test_details.title ?? "-"} />
+            <Row label="Nama Ujian" value={detail?.test_details?.title ?? "-"} />
             <Row
               label="Durasi"
               value={
-                detail?.test_details.timer_type === "per_category"
+                detail?.test_details?.timer_type === "per_category"
                   ? "Per kategori"
-                  : formatDurationFromSeconds(detail?.test_details.total_time)
+                  : formatDurationFromSeconds(detail?.test_details?.total_time)
               }
             />
             <Row
               label="Total Soal"
-              value={`${detail?.test_details.total_questions ?? 0}`}
+              value={`${detail?.test_details?.total_questions ?? 0}`}
             />
           </div>
 

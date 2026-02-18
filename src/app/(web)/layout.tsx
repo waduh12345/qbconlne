@@ -2,6 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import {
+  Monitor,
+  Menu,
+  X,
+  Instagram,
+  Youtube,
+  MapPin,
+  Mail,
+} from "lucide-react";
+import { IconBrandTiktok, IconBrandWhatsapp } from "@tabler/icons-react";
 
 export default function HomeLayout({
   children,
@@ -22,7 +32,7 @@ export default function HomeLayout({
     <section className="min-h-screen flex flex-col font-sans selection:bg-[#F59E0B] selection:text-white">
       {/* --- NAVBAR --- */}
       <nav className="bg-[#024BA6] text-white sticky top-0 z-[100] shadow-lg">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
           {/* Logo */}
           <Link href="/home" className="flex flex-col">
             <span className="text-xl lg:text-2xl font-black tracking-tighter leading-none">
@@ -48,22 +58,26 @@ export default function HomeLayout({
               href="/e-learning"
               className="bg-[#F59E0B] hover:bg-[#D4420C] text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-md"
             >
-              <i className="fas fa-laptop-code"></i> E-LEARNING
+              <Monitor className="size-4" /> E-LEARNING
             </Link>
           </div>
 
           {/* Mobile Toggle */}
           <button
-            className="lg:hidden text-2xl"
+            className="lg:hidden p-2"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <i className={`fas ${isMenuOpen ? "fa-times" : "fa-bars"}`}></i>
+            {isMenuOpen ? (
+              <X className="size-6" />
+            ) : (
+              <Menu className="size-6" />
+            )}
           </button>
         </div>
 
         {/* Mobile Menu Overlay */}
         {isMenuOpen && (
-          <div className="lg:hidden bg-[#024BA6] border-t border-white/10 p-6 flex flex-col gap-4 animate-fadeIn">
+          <div className="lg:hidden bg-[#024BA6] border-t border-white/10 p-6 flex flex-col gap-4">
             {menuItems.map((item) => (
               <Link
                 key={item.name}
@@ -75,7 +89,7 @@ export default function HomeLayout({
               </Link>
             ))}
             <Link
-              href="/home/e-learning"
+              href="/e-learning"
               onClick={() => setIsMenuOpen(false)}
               className="bg-[#F59E0B] text-center py-3 rounded-xl font-bold mt-2"
             >
@@ -90,7 +104,7 @@ export default function HomeLayout({
 
       {/* --- FOOTER --- */}
       <footer className="bg-[#024BA6] text-white pt-20 pb-10 border-t border-white/10">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
             {/* Branding & Tagline */}
             <div className="lg:col-span-1">
@@ -102,24 +116,24 @@ export default function HomeLayout({
                 rapor, siap menghadapi TKA dan Raih mimpimu tembus PTN dan
                 PTLN.&quot;
               </p>
-              <div className="flex gap-4">
+              <div className="flex gap-3">
                 <a
                   href="#"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
+                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
                 >
-                  <i className="fab fa-instagram text-xl"></i>
+                  <Instagram className="size-5" />
                 </a>
                 <a
                   href="#"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
+                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
                 >
-                  <i className="fab fa-tiktok text-xl"></i>
+                  <IconBrandTiktok className="size-5" />
                 </a>
                 <a
                   href="#"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
+                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-[#F59E0B] transition-colors"
                 >
-                  <i className="fab fa-youtube text-xl"></i>
+                  <Youtube className="size-5" />
                 </a>
               </div>
             </div>
@@ -189,18 +203,18 @@ export default function HomeLayout({
               </h4>
               <div className="space-y-4 text-sm text-white/70">
                 <p className="flex items-start gap-3">
-                  <i className="fas fa-map-marker-alt text-[#F59E0B] mt-1"></i>
+                  <MapPin className="size-4 text-[#F59E0B] mt-1 shrink-0" />
                   <span>
                     Perumahan Permata Depok Sektor Berlian 2 Blok H2/16
                     Cipayung, Depok, Jawa Barat
                   </span>
                 </p>
                 <p className="flex items-center gap-3">
-                  <i className="fab fa-whatsapp text-[#F59E0B] text-lg"></i>
-                  <span>+62 812 236 378</span>
+                  <IconBrandWhatsapp className="size-5 text-[#F59E0B] shrink-0" />
+                  <span>0812236378</span>
                 </p>
                 <p className="flex items-center gap-3">
-                  <i className="fas fa-envelope text-[#F59E0B]"></i>
+                  <Mail className="size-4 text-[#F59E0B] shrink-0" />
                   <span>qubicbanguncita@gmail.com</span>
                 </p>
               </div>
@@ -227,11 +241,11 @@ export default function HomeLayout({
 
       {/* WhatsApp Floating Button */}
       <a
-        href="https://wa.me/6281234567890"
+        href="https://wa.me/62812236378"
         target="_blank"
-        className="fixed bottom-6 right-6 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-2xl hover:scale-110 transition-transform z-[999]"
+        className="fixed bottom-6 right-6 bg-[#25D366] text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl hover:scale-110 transition-transform z-[999]"
       >
-        <i className="fab fa-whatsapp"></i>
+        <IconBrandWhatsapp className="size-7" />
       </a>
     </section>
   );

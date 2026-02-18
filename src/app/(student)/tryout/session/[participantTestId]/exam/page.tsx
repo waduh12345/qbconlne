@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,21 @@ function timerStorageKey(participantTestId: number, categoryId: string | null) {
 }
 
 export default function ExamPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-40 items-center justify-center text-zinc-500">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          Memuat halaman ujian…
+        </div>
+      }
+    >
+      <ExamPageInner />
+    </Suspense>
+  );
+}
+
+function ExamPageInner() {
   const router = useRouter();
   const params = useParams<{ participantTestId: string }>();
   const participantTestId = Number(params.participantTestId);
@@ -131,9 +146,12 @@ export default function ExamPage() {
 
   // ====== FLATTEN QUESTIONS ======
   const flat: ParticipantAnswer[] = useMemo(() => {
-    if (!data) return [];
+    if (!data?.questions) return [];
     const arr: ParticipantAnswer[] = [];
-    for (const g of data.questions) for (const q of g.questions) arr.push(q);
+    for (const g of data.questions) {
+      if (!g.questions) continue;
+      for (const q of g.questions) arr.push(q);
+    }
     return arr;
   }, [data]);
 
@@ -490,7 +508,7 @@ export default function ExamPage() {
 
               {/* Pertanyaan */}
               <div className="prose prose-sm max-w-none">
-                <RichTextView html={(current.question_details as QuestionDetails).question} />
+                <RichTextView html={(current.question_details as QuestionDetails)?.question} />
               </div>
 
               {/* Opsi/Jawaban */}
@@ -633,6 +651,7 @@ function AnswerRenderer({
   saving: boolean;
 }) {
   const det = current.question_details;
+  if (!det) return null;
 
   if (det.type === "essay") {
     const d = det as QuestionDetailsEssay;
@@ -656,7 +675,7 @@ function AnswerRenderer({
       <MCControl
         questionId={current.question_id}
         type={d.type}
-        options={d.options}
+        options={d.options ?? []}
         multiple={d.type === "multiple_choice_multiple_answer"}
         initial={current.user_answer ?? ""}
         onSubmit={(value) => onSave(value, d.type)}
@@ -670,7 +689,7 @@ function AnswerRenderer({
     return (
       <CategorizedControl
         questionId={current.question_id}
-        options={d.options}
+        options={d.options ?? []}
         initial={current.user_answer ?? ""}
         onSubmit={(value) => onSave(value, d.type)}
         saving={saving}

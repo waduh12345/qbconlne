@@ -276,9 +276,14 @@ export default function LoginForm() {
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="numeric"
                   placeholder="081234567890"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const digitsOnly = v.replace(/\D/g, "");
+                    setPhone(digitsOnly);
+                  }}
                   className="bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700 text-black dark:text-white"
                   required
                 />

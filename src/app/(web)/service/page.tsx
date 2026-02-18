@@ -2,10 +2,15 @@
 
 import React from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
+import { Check, RefreshCw, Users, Monitor, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SectionHeading } from "@/components/web/section-heading";
+import { fadeInUp, staggerContainer } from "@/lib/motion";
 
 const services = [
   {
-    id: "reguler",
+    id: "pelatihan-siswa",
     title: "Pelatihan Siswa",
     category: "SD - SMP - SMA",
     description: "Pendampingan akademik dan non akademik",
@@ -15,13 +20,11 @@ const services = [
       "OSN, FLS3N, FIKSI, & OPSI",
       "NSDC, LDBI, dan lomba lainnya",
     ],
-    icon: "fa-book-open",
     color: "#024BA6",
-    image:
-      "/images/siswa.jpg",
+    image: "/images/siswa.jpg",
   },
   {
-    id: "reguler",
+    id: "pelatihan-guru",
     title: "Pelatihan Guru dan Tenaga Kependidikan",
     category: "SD - SMP - SMA",
     description:
@@ -32,10 +35,8 @@ const services = [
       "Workshop Motivasi Kerja",
       "Tema lainnya",
     ],
-    icon: "fa-book-open",
     color: "#024BA6",
-    image:
-      "/images/guru.jpg",
+    image: "/images/guru.jpg",
   },
   {
     id: "reguler",
@@ -49,10 +50,8 @@ const services = [
       "Modul Materi Sesuai Kurikulum Sekolah",
       "Laporan Perkembangan Bulanan",
     ],
-    icon: "fa-book-open",
     color: "#024BA6",
-    image:
-      "/images/services3.jpeg",
+    image: "/images/services3.jpeg",
   },
   {
     id: "tka",
@@ -66,10 +65,8 @@ const services = [
       "Bedah Strategi Lolos PTN",
       "Konsultasi Pemilihan Jurusan",
     ],
-    icon: "fa-graduation-cap",
     color: "#D4420C",
-    image:
-      "/images/services2.jpg",
+    image: "/images/services2.jpg",
   },
   {
     id: "global",
@@ -83,9 +80,31 @@ const services = [
       "Workshop Beasiswa Luar Negeri",
       "Bimbingan Aplikasi PTLN",
     ],
-    icon: "fa-globe-americas",
     color: "#F59E0B",
     image: "/images/global-service.jpg",
+  },
+];
+
+const methodItems = [
+  {
+    title: "Kurikulum Adaptif",
+    desc: "Menyesuaikan dengan kecepatan belajar tiap siswa.",
+    icon: RefreshCw,
+  },
+  {
+    title: "Mentor Asik",
+    desc: "Pengajar muda berprestasi yang berperan sebagai kakak mentor.",
+    icon: Users,
+  },
+  {
+    title: "Visual & Digital",
+    desc: "Pembelajaran menggunakan aset visual dan platform CBT.",
+    icon: Monitor,
+  },
+  {
+    title: "Evaluasi Rutin",
+    desc: "Progress report transparan untuk orang tua & siswa.",
+    icon: TrendingUp,
   },
 ];
 
@@ -93,160 +112,154 @@ export default function ServicePage() {
   return (
     <div className="bg-[#FDFCFB]">
       {/* --- HERO SECTION --- */}
-      <section className="bg-[#024BA6] pt-20 pb-32 relative overflow-hidden">
-        <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
-          <i className="fas fa-shapes text-[30rem] rotate-12 text-white"></i>
-        </div>
-        <div className="container mx-auto px-6 text-center relative z-10">
-          <h1 className="text-4xl lg:text-6xl font-extrabold text-white mb-6">
+      <section className="bg-[#024BA6] pt-20 pb-28">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fadeInUp}
+          className="container mx-auto px-4 md:px-6 text-center relative z-10"
+        >
+          <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold text-white mb-6">
             Layanan Terbaik untuk <br />
             <span className="text-[#F59E0B]">Masa Depanmu</span>
           </h1>
           <p className="text-white/80 max-w-2xl mx-auto text-lg lg:text-xl font-light">
-            Dari peningkatan nilai rapor hingga persiapan kampus luar negeri,
+            Dari peningkatan nilai rapor hingga persiapan kampus dalam dan luar negeri,
             Qubic hadir dengan metode Fun Learning yang telah teruji.
           </p>
-        </div>
+        </motion.div>
       </section>
 
       {/* --- SERVICE CARDS (STAGGERED) --- */}
-      <section className="container mx-auto px-6 -mt-20 relative z-20 pb-24">
-        <div className="flex flex-col gap-16">
+      <section className="container mx-auto px-4 md:px-6 -mt-16 relative z-20 pb-16 md:pb-20">
+        <div className="flex flex-col gap-12 md:gap-16">
           {services.map((service, index) => (
-            <div
-              key={service.id}
-              className={`flex flex-col ${index % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"} bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 transition-transform hover:scale-[1.01] duration-500`}
+            <motion.div
+              key={service.id + index}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={fadeInUp}
+              className={`flex flex-col ${
+                index % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"
+              } bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300`}
             >
               {/* Image Side */}
-              <div className="lg:w-1/2 relative h-[300px] lg:h-auto overflow-hidden">
+              <div className="lg:w-1/2 relative h-[220px] md:h-[300px] lg:h-auto overflow-hidden">
                 <Image
                   src={service.image}
                   alt={service.title}
                   fill
-                  className="object-cover transition-transform duration-700 hover:scale-110"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent lg:hidden" />
-                <div className="absolute bottom-6 left-6 lg:hidden">
-                  <span className="bg-[#F59E0B] text-white px-4 py-1 rounded-full text-xs font-bold uppercase">
+                <div className="absolute bottom-4 left-4 lg:hidden">
+                  <span className="bg-[#F59E0B] text-white px-3 py-1 rounded-lg text-xs font-bold uppercase">
                     {service.category}
                   </span>
                 </div>
               </div>
 
               {/* Content Side */}
-              <div className="lg:w-1/2 p-10 lg:p-16 flex flex-col justify-center">
+              <div className="lg:w-1/2 p-8 md:p-10 lg:p-14 flex flex-col justify-center">
                 <div className="hidden lg:block mb-4">
                   <span className="text-[#D4420C] font-bold tracking-widest text-sm uppercase">
                     {service.category}
                   </span>
                 </div>
-                <h2 className="text-3xl lg:text-4xl font-extrabold text-[#024BA6] mb-6 leading-tight">
+                <h2 className="text-2xl lg:text-3xl font-bold text-[#024BA6] mb-4 leading-tight">
                   {service.title}
                 </h2>
-                <p className="text-gray-500 text-lg mb-8 font-light leading-relaxed">
+                <p className="text-gray-500 text-base mb-8 font-light leading-relaxed">
                   {service.description}
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                   {service.features.map((feature, idx) => (
                     <div
                       key={idx}
                       className="flex items-center gap-3 text-sm font-medium text-gray-700"
                     >
-                      <div className="w-6 h-6 rounded-full bg-[#F59E0B]/10 flex items-center justify-center text-[#F59E0B]">
-                        <i className="fas fa-check text-[10px]"></i>
+                      <div className="w-5 h-5 rounded-md bg-[#F59E0B]/10 flex items-center justify-center text-[#F59E0B] shrink-0">
+                        <Check className="size-3" />
                       </div>
                       {feature}
                     </div>
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button className="bg-[#024BA6] text-white px-8 py-4 rounded-xl font-bold hover:bg-[#D4420C] transition-all shadow-lg text-center">
+                <div>
+                  <Button className="bg-[#024BA6] hover:bg-[#D4420C] text-white px-8 h-12 rounded-xl font-bold">
                     Tanya via WhatsApp
-                  </button>
-                  {/* <button className="bg-[#024BA6] text-white px-8 py-4 rounded-xl font-bold hover:bg-[#D4420C] transition-all shadow-lg text-center">
-                        Pelajari Detail Program
-                    </button>
-                    <button className="border-2 border-gray-200 text-[#024BA6] px-8 py-4 rounded-xl font-bold hover:border-[#F59E0B] transition-all text-center">
-                        Tanya via WhatsApp
-                    </button> */}
+                  </Button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* --- WHY QUBIC? (METHODOLOGY) --- */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-5xl font-extrabold text-[#024BA6] mb-4">
-              Metode Fun Learning Kami
-            </h2>
-            <div className="w-24 h-2 bg-[#F59E0B] mx-auto rounded-full"></div>
-          </div>
+      <section className="py-16 md:py-20 bg-white">
+        <div className="container mx-auto px-4 md:px-6">
+          <SectionHeading
+            title="Metode Fun Learning Kami"
+            description="Pendekatan belajar yang terbukti efektif dan menyenangkan."
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                title: "Kurikulum Adaptif",
-                desc: "Menyesuaikan dengan kecepatan belajar tiap siswa.",
-                icon: "fa-sync-alt",
-              },
-              {
-                title: "Mentor Asik",
-                desc: "Pengajar muda berprestasi yang berperan sebagai kakak mentor.",
-                icon: "fa-users",
-              },
-              {
-                title: "Visual & Digital",
-                desc: "Pembelajaran menggunakan aset visual dan platform CBT.",
-                icon: "fa-laptop-code",
-              },
-              {
-                title: "Evaluasi Rutin",
-                desc: "Progress report transparan untuk orang tua & siswa.",
-                icon: "fa-chart-line",
-              },
-            ].map((item, i) => (
-              <div
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
+            {methodItems.map((item, i) => (
+              <motion.div
                 key={i}
-                className="group p-8 rounded-3xl border border-gray-100 hover:border-[#F59E0B] hover:shadow-xl transition-all duration-300"
+                variants={fadeInUp}
+                className="group p-8 rounded-xl border border-gray-100 hover:border-[#F59E0B] hover:shadow-md transition-all duration-300"
               >
-                <div className="w-14 h-14 bg-[#024BA6]/5 rounded-2xl flex items-center justify-center text-[#024BA6] text-2xl mb-6 group-hover:bg-[#024BA6] group-hover:text-white transition-colors">
-                  <i className={`fas ${item.icon}`}></i>
+                <div className="w-12 h-12 bg-[#024BA6]/5 rounded-xl flex items-center justify-center text-[#024BA6] mb-6 group-hover:bg-[#024BA6] group-hover:text-white transition-colors">
+                  <item.icon className="size-6" />
                 </div>
-                <h4 className="font-bold text-xl mb-3">{item.title}</h4>
+                <h4 className="font-bold text-lg mb-3">{item.title}</h4>
                 <p className="text-gray-500 text-sm font-light leading-relaxed">
                   {item.desc}
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* --- CTA SECTION --- */}
-      <section className="py-20 container mx-auto px-6">
-        <div className="bg-[#D4420C] rounded-[3rem] p-10 lg:p-20 text-white flex flex-col lg:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden">
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="relative z-10 lg:w-2/3 text-center lg:text-left">
-            <h2 className="text-3xl lg:text-5xl font-bold mb-6 italic">
+      <section className="py-16 md:py-20 container mx-auto px-4 md:px-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          className="bg-[#D4420C] rounded-2xl p-8 md:p-12 lg:p-16 text-white flex flex-col lg:flex-row items-center justify-between gap-8"
+        >
+          <div className="lg:w-2/3 text-center lg:text-left">
+            <h2 className="text-2xl lg:text-4xl font-bold mb-4">
               Belum yakin memilih program yang mana?
             </h2>
-            <p className="text-white/80 text-lg lg:text-xl font-light">
+            <p className="text-white/80 text-base lg:text-lg font-light">
               Jangan khawatir! Tim konsultan pendidikan Qubic siap membantu
               memetakan jalur pendidikan terbaik untukmu.
             </p>
           </div>
-          <div className="relative z-10 lg:w-1/3 flex justify-center lg:justify-end">
-            <button className="bg-white text-[#D4420C] px-10 py-5 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition-transform uppercase tracking-wider">
+          <div className="lg:w-1/3 flex justify-center lg:justify-end">
+            <Button
+              size="lg"
+              className="bg-white text-[#D4420C] hover:bg-white/90 px-8 h-14 rounded-xl font-bold text-lg"
+            >
               Gratis Konsultasi
-            </button>
+            </Button>
           </div>
-        </div>
+        </motion.div>
       </section>
     </div>
   );

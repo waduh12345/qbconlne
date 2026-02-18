@@ -11,10 +11,18 @@ import {
   User2,
   GraduationCap,
   Printer,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
+import Link from "next/link";
 
 import { useGetMeQuery } from "@/services/auth.service";
-import type { User, Role } from "@/types/user";
+import { useUpdateUserPasswordMutation } from "@/services/users-management.service";
+import type { User, Role, UpdatePasswordPayload } from "@/types/user";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Swal from "sweetalert2";
 
 /** ====== Extra types dari contoh /me (ditambah nim, dll supaya aman) ====== */
 type School = {
@@ -269,6 +277,92 @@ function StudentCard({ me }: { me: Me }) {
   );
 }
 
+/** ====== Form Ubah Password (mandiri) ====== */
+function ChangePasswordCard({ userId }: { userId: number }) {
+  const [password, setPassword] = React.useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = React.useState("");
+  const [updatePassword, { isLoading: updating }] = useUpdateUserPasswordMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) {
+      void Swal.fire({ icon: "warning", title: "Password baru wajib diisi" });
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      void Swal.fire({
+        icon: "warning",
+        title: "Konfirmasi password tidak sama",
+      });
+      return;
+    }
+    const payload: UpdatePasswordPayload = {
+      password,
+      password_confirmation: passwordConfirmation,
+    };
+    try {
+      await updatePassword({ id: userId, payload }).unwrap();
+      void Swal.fire({ icon: "success", title: "Password berhasil diubah" });
+      setPassword("");
+      setPasswordConfirmation("");
+    } catch (err) {
+      const msg =
+        (err as { data?: { message?: string } })?.data?.message ??
+        "Gagal mengubah password. Coba lagi.";
+      void Swal.fire({ icon: "error", title: "Gagal", text: msg });
+    }
+  };
+
+  return (
+    <section className="rounded-2xl bg-white/90 p-5 ring-1 ring-zinc-200 shadow-sm md:col-span-2">
+      <div className="mb-4 flex items-center gap-2">
+        <KeyRound className="h-5 w-5 text-sky-600" />
+        <h2 className="text-lg font-semibold">Ubah Password</h2>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+        <div className="space-y-2">
+          <Label htmlFor="profile-password">Password Baru</Label>
+          <Input
+            id="profile-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Min. 6 karakter"
+            className="bg-white dark:bg-neutral-900"
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-password-confirm">Konfirmasi Password</Label>
+          <Input
+            id="profile-password-confirm"
+            type="password"
+            value={passwordConfirmation}
+            onChange={(e) => setPasswordConfirmation(e.target.value)}
+            placeholder="Ulangi password baru"
+            className="bg-white dark:bg-neutral-900"
+            autoComplete="new-password"
+          />
+        </div>
+        <Button
+          type="submit"
+          disabled={updating}
+          className="rounded-xl bg-sky-600 hover:bg-sky-700"
+        >
+          {updating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            "Simpan Password"
+          )}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
 /** ====== Halaman ====== */
 export default function ProfilePage() {
   const { data, isLoading, isError, refetch } = useGetMeQuery();
@@ -363,6 +457,25 @@ export default function ProfilePage() {
                   )}
                 </Row>
               </div>
+
+              {/* Lupa password — hubungi via WhatsApp (sama dengan flow di halaman login) */}
+              <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50/50 p-3 dark:border-sky-900/50 dark:bg-sky-950/30">
+                <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Lupa password?
+                </p>
+                <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  Hubungi admin via WhatsApp untuk reset password akun Anda.
+                </p>
+                <Link
+                  href="https://wa.me/6282261936478?text=Lupa%20password%20CBT%20Qubic%20saya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Hubungi via WhatsApp
+                </Link>
+              </div>
             </section>
 
             {/* Data siswa */}
@@ -395,6 +508,9 @@ export default function ProfilePage() {
                 </div>
               )}
             </section>
+
+            {/* Form ubah password mandiri */}
+            <ChangePasswordCard userId={me.id} />
 
             {/* Kartu Siswa + tombol print */}
             {me.student ? <StudentCard me={me} /> : null}
