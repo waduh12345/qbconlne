@@ -32,7 +32,7 @@ export default function AboutPage() {
               <div className="absolute inset-0 border-4 border-[#F59E0B] rounded-[3rem] translate-x-4 translate-y-4"></div>
               <div className="relative h-full w-full rounded-[3rem] overflow-hidden shadow-2xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070"
+                  src="/images/aboutus.webp"
                   alt="Team Qubic"
                   fill
                   className="object-cover"
@@ -230,12 +230,20 @@ export default function AboutPage() {
                 Hari Ini!
               </h2>
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                <button className="bg-white text-[#D4420C] px-12 py-5 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition-transform uppercase">
-                  Hubungi Admin
-                </button>
-                <button className="bg-[#024BA6] text-white px-12 py-5 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition-transform uppercase">
-                  Lihat Program
-                </button>
+                <a
+                  href={`https://wa.me/62812236378?text=${encodeURIComponent("Halo Qubic, saya ingin bertanya lebih lanjut mengenai program yang tersedia. Terima kasih!")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <button className="bg-white text-[#D4420C] px-12 py-5 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition-transform uppercase">
+                    Hubungi Admin
+                  </button>
+                </a>
+                <a href="/service">
+                  <button className="bg-[#024BA6] text-white px-12 py-5 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition-transform uppercase">
+                    Lihat Program
+                  </button>
+                </a>
               </div>
             </div>
             {/* Background Texture */}

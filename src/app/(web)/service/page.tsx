@@ -21,7 +21,7 @@ const services = [
       "NSDC, LDBI, dan lomba lainnya",
     ],
     color: "#024BA6",
-    image: "/images/siswa.jpg",
+    image: "/images/siswa.webp",
   },
   {
     id: "pelatihan-guru",
@@ -66,7 +66,7 @@ const services = [
       "Konsultasi Pemilihan Jurusan",
     ],
     color: "#D4420C",
-    image: "/images/services2.jpg",
+    image: "/images/services2.webp",
   },
   {
     id: "global",
@@ -189,9 +189,15 @@ export default function ServicePage() {
                 </div>
 
                 <div>
-                  <Button className="bg-[#024BA6] hover:bg-[#D4420C] text-white px-8 h-12 rounded-xl font-bold">
-                    Tanya via WhatsApp
-                  </Button>
+                  <a
+                    href={`https://wa.me/62812236378?text=${encodeURIComponent(`Halo Qubic, saya tertarik dengan program ${service.title} (${service.category}). Bisa info lebih lanjut?`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="bg-[#024BA6] hover:bg-[#D4420C] text-white px-8 h-12 rounded-xl font-bold">
+                      Tanya via WhatsApp
+                    </Button>
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -252,12 +258,18 @@ export default function ServicePage() {
             </p>
           </div>
           <div className="lg:w-1/3 flex justify-center lg:justify-end">
-            <Button
-              size="lg"
-              className="bg-white text-[#D4420C] hover:bg-white/90 px-8 h-14 rounded-xl font-bold text-lg"
+            <a
+              href={`https://wa.me/62812236378?text=${encodeURIComponent("Halo Qubic, saya ingin konsultasi gratis mengenai program pendidikan yang cocok untuk saya. Terima kasih!")}`}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              Gratis Konsultasi
-            </Button>
+              <Button
+                size="lg"
+                className="bg-white text-[#D4420C] hover:bg-white/90 px-8 h-14 rounded-xl font-bold text-lg"
+              >
+                Gratis Konsultasi
+              </Button>
+            </a>
           </div>
         </motion.div>
       </section>

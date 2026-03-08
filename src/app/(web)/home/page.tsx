@@ -40,16 +40,23 @@ export default function HomeQubic() {
     {
       id: 1,
       image:
-        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070",
+        "/images/slider-1.webp",
       title: "Raih Sekolah atau Kampus Impianmu",
       subtitle: "Persiapan matang tembus PTN & Perguruan Tinggi Luar Negeri.",
     },
     {
       id: 2,
       image:
-        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071",
+        "/images/slider-2.webp",
       title: "Fun Learning Experience",
       subtitle: "Belajar asik, nilai rapor naik, masa depan jadi cerah!",
+    },
+    {
+      id: 3,
+      image:
+        "/images/slider-3.webp",
+      title: "Bimbel Terbaik untuk Masa Depanmu",
+      subtitle: "Didampingi tutor berpengalaman, siap bersaing di level nasional!",
     },
   ];
 
@@ -58,7 +65,7 @@ export default function HomeQubic() {
       id: 1,
       name: "Reguler Boost",
       category: "SD - SMP - SMA",
-      image: "/images/reguler.png",
+      image: "/images/reguler.webp",
       variants: [
         {
           duration: "1 Semester",
@@ -76,7 +83,7 @@ export default function HomeQubic() {
       id: 2,
       name: "TKA/UTBK Mastery",
       category: "Persiapan TKA/UTBK",
-      image: "/images/mastery.png",
+      image: "/images/mastery.webp",
       variants: [
         {
           duration: "Intensif",
@@ -90,7 +97,7 @@ export default function HomeQubic() {
       id: 3,
       name: "Global Pathway",
       category: "Persiapan PTLN",
-      image: "/images/global.png",
+      image: "/images/global.webp",
       variants: [
         {
           duration: "IELTS/SAT",
@@ -386,12 +393,14 @@ export default function HomeQubic() {
           Konsultasikan kebutuhan pendidikan putra-putri Anda secara gratis
           dengan konsultan pendidikan kami.
         </p>
-        <Button
-          size="lg"
-          className="bg-[#D4420C] hover:bg-[#D4420C]/90 text-white px-10 h-14 rounded-xl font-bold text-lg shadow-lg"
-        >
-          Hubungi Kami via WhatsApp
-        </Button>
+        <a href="https://wa.me/62812236378" target="_blank" rel="noopener noreferrer">
+          <Button
+            size="lg"
+            className="bg-[#D4420C] hover:bg-[#D4420C]/90 text-white px-10 h-14 rounded-xl font-bold text-lg shadow-lg"
+          >
+            Hubungi Kami via WhatsApp
+          </Button>
+        </a>
       </motion.section>
     </div>
   );

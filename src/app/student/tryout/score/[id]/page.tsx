@@ -309,7 +309,10 @@ const QuestionReviewItem = ({
   }
 
   const currentPoint = point ?? 0;
-  const isPartial = currentPoint > 0 && !is_correct;
+  const totalPoint = questionDetails.total_point ?? 0;
+  // Derive correctness from point comparison: full points = correct, some points = partial
+  const isFullyCorrect = currentPoint > 0 && currentPoint === totalPoint ? true : is_correct;
+  const isPartial = currentPoint > 0 && !isFullyCorrect;
 
   return (
     <Card className="mb-6 overflow-hidden border-zinc-200 shadow-sm">
@@ -332,7 +335,7 @@ const QuestionReviewItem = ({
                       ? `Nilai: ${point}`
                       : "Menunggu Penilaian"}
                   </Badge>
-                ) : is_correct ? (
+                ) : isFullyCorrect ? (
                   <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none">
                     <CheckCircle2 className="mr-1 h-3 w-3" /> Benar
                   </Badge>
@@ -356,7 +359,7 @@ const QuestionReviewItem = ({
                     <span
                       className={cn(
                         "font-bold px-2 py-0.5 rounded text-xs border",
-                        is_correct
+                        isFullyCorrect
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : isPartial
                           ? "bg-yellow-50 text-yellow-700 border-yellow-200"
@@ -366,7 +369,7 @@ const QuestionReviewItem = ({
                       {displayUserAnswer}
                     </span>
                   </div>
-                  {!is_correct && (
+                  {!isFullyCorrect && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-zinc-500">Kunci:</span>
                       <span className="font-bold px-2 py-0.5 rounded text-xs bg-zinc-100 text-zinc-700 border border-zinc-200">
@@ -536,16 +539,22 @@ export default function StudentTryoutScorePage({
     (acc, cat) => {
       const questions = (cat.participant_questions ?? []) as ParticipantAnswer[];
       questions.forEach((q) => {
+        const qPoint = q.point ?? 0;
+        const qTotalPoint = (q.question_details as QuestionDetailsVariant)?.total_point ?? 0;
+        const qIsCorrect = (qPoint > 0 && qPoint === qTotalPoint) || q.is_correct;
+        const qIsPartial = qPoint > 0 && !qIsCorrect;
         acc.total += 1;
-        if (q.is_correct) {
+        if (qIsCorrect) {
           acc.correct += 1;
+        } else if (qIsPartial) {
+          acc.partial += 1;
         } else {
           acc.wrong += 1;
         }
       });
       return acc;
     },
-    { total: 0, correct: 0, wrong: 0 }
+    { total: 0, correct: 0, wrong: 0, partial: 0 }
   );
 
   // Hitung nilai persentase per 100
@@ -598,7 +607,7 @@ export default function StudentTryoutScorePage({
       {/* Main Content */}
       <main className="mx-auto max-w-5xl px-4 lg:px-0 mt-4 relative z-10">
         {/* Info Cards */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-8">
           <Card className="border-l-4 border-l-emerald-500 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-zinc-500">
@@ -608,6 +617,18 @@ export default function StudentTryoutScorePage({
             <CardContent>
               <div className="flex items-center gap-2 text-emerald-600 font-bold text-lg">
                 <CheckCircle2 className="h-5 w-5" /> {totalStats.correct} Soal
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-yellow-500 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-zinc-500">
+                Jawaban Parsial
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-yellow-600 font-bold text-lg">
+                <AlertCircle className="h-5 w-5" /> {totalStats.partial} Soal
               </div>
             </CardContent>
           </Card>

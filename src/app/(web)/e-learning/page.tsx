@@ -125,7 +125,7 @@ export default function ELearningPage() {
               <div className="relative z-10 bg-[#024BA6] rounded-xl p-3 shadow-2xl border-2 border-white/10">
                 <div className="relative aspect-[16/10] rounded-lg overflow-hidden bg-gray-900 shadow-inner">
                   <Image
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015"
+                    src="/images/siswa.webp"
                     alt="Dashboard CBT Mockup"
                     fill
                     className="object-cover opacity-90"
@@ -227,7 +227,7 @@ export default function ELearningPage() {
             >
               <div className="rounded-2xl overflow-hidden shadow-lg border-2 border-gray-200">
                 <Image
-                  src="https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=2070"
+                  src="/images/slider-2.webp"
                   alt="Student using CBT"
                   width={800}
                   height={600}
