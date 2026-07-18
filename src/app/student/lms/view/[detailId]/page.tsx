@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LmsDetail } from "@/types/lms-detail";
+import { resolveContentUrl } from "@/lib/asset-url";
 
 /* --- Helpers --- */
 
@@ -51,8 +52,14 @@ export default function LmsViewerPage() {
   });
 
   const activeType = data?.type;
-  // Prioritas: File Upload > Original URL (media) > Link manual
-  const activeFile = data?.file ?? data?.media?.[0]?.original_url ?? null;
+  // Prioritas: media[].original_url (Spatie, selalu absolut) lalu fallback ke
+  // field `file` yang di-absolut-kan bila relatif. Base API (/api/v1) TIDAK
+  // dipakai untuk file — file di-serve dari origin/storage. Ini yang membuat
+  // PDF (dan media lain) bisa dibuka setelah upload.
+  const activeFile = resolveContentUrl(
+    typeof data?.file === "string" ? data.file : null,
+    data?.media,
+  );
   const activeLink = data?.link ?? null;
 
   // Ukuran viewer konsisten

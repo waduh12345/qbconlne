@@ -26,6 +26,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ParticipantAnswer, MCOption } from "@/types/student/tryout";
 import { cn } from "@/lib/utils";
+import {
+  normalizeAnswerSet,
+  arrEqual,
+  formatAnswerDisplay,
+} from "@/lib/answer-correctness";
+import { Lock } from "lucide-react";
 
 // --- 1. DEFINISI TIPE YANG LEBIH KETAT (NO ANY) ---
 
@@ -70,35 +76,8 @@ type QuestionDetailsVariant =
   | QuestionDetailsEssay;
 
 // --- Components Helpers ---
-
-/**
- * Normalisasi jawaban: lowercase, trim, dedupe, sort.
- * Dipakai untuk perbandingan set-equality multiple-choice.
- */
-const normalizeAnswerSet = (raw: string | null | undefined): string[] => {
-  if (!raw) return [];
-  return Array.from(
-    new Set(
-      raw
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter((s) => s.length > 0),
-    ),
-  ).sort();
-};
-
-const arrEqual = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((v, i) => v === b[i]);
-
-/**
- * Format tampilan jawaban siswa: huruf kapital, urut alphabet, dipisah koma.
- * Mis. "c,a,d" -> "A, C, D".
- */
-const formatAnswerDisplay = (raw: string | null | undefined): string => {
-  const arr = normalizeAnswerSet(raw);
-  if (arr.length === 0) return "-";
-  return arr.map((s) => s.toUpperCase()).join(", ");
-};
+// normalizeAnswerSet / arrEqual / formatAnswerDisplay dipindah ke
+// "@/lib/answer-correctness" agar dipakai bersama modal detail admin.
 
 /**
  * Hitung correctness client-side. Override `is_correct` dari backend supaya
@@ -611,6 +590,17 @@ export default function StudentTryoutScorePage({
 
   const categories = participant_question_categories ?? [];
 
+  // Gating "Review Hasil": jika admin mematikan review (is_explanation_released
+  // = false) DAN tryout masih aktif (belum melewati end_date), siswa HANYA
+  // melihat skor & rekap benar/salah — tanpa soal, jawaban, dan kunci jawaban.
+  // Jika review diaktifkan (on) ATAU masa tryout sudah berakhir, detail dibuka.
+  const reviewReleased = test_details?.is_explanation_released === true;
+  const endTime = test_details?.end_date
+    ? new Date(test_details.end_date).getTime()
+    : null;
+  const tryoutEnded = endTime !== null && !Number.isNaN(endTime) && Date.now() > endTime;
+  const reviewUnlocked = reviewReleased || tryoutEnded;
+
   // Hitung total soal benar dan salah dari semua kategori - pakai deriveCorrectness
   // supaya statistik konsisten dengan badge per soal.
   const totalStats = categories.reduce(
@@ -733,7 +723,10 @@ export default function StudentTryoutScorePage({
           </Card>
         </div>
 
-        {/* Categories Tabs */}
+        {/* Detail Jawaban — hanya jika "Review Hasil" aktif (on) atau masa
+            tryout sudah berakhir. Jika terkunci, siswa cukup melihat skor &
+            rekap benar/salah di atas. */}
+        {reviewUnlocked ? (
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-zinc-800">Detail Jawaban</h2>
           {categories.length > 0 ? (
@@ -795,6 +788,25 @@ export default function StudentTryoutScorePage({
             </div>
           )}
         </div>
+        ) : (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-zinc-800">Detail Jawaban</h2>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                <Lock className="h-7 w-7" />
+              </div>
+              <h3 className="text-lg font-semibold text-amber-900">
+                Pembahasan Masih Dikunci
+              </h3>
+              <p className="mx-auto mt-2 max-w-lg text-sm text-amber-700">
+                Kamu sudah menyelesaikan tryout ini. Untuk sekarang kamu hanya
+                dapat melihat skor dan rekap jawaban benar/salah. Detail soal,
+                jawabanmu, beserta kunci jawaban akan tersedia setelah masa
+                tryout berakhir.
+              </p>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

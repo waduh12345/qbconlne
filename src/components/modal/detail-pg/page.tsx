@@ -16,6 +16,11 @@ import { Loader2 } from "lucide-react";
 
 // --- Service Import ---
 import { useGetParticipantHistoryByIdQuery } from "@/services/student/tryout.service";
+import {
+  isChoiceAnswerCorrect,
+  isChoiceType,
+  normalizeAnswerSet,
+} from "@/lib/answer-correctness";
 
 // --- DEFINISI TIPE ---
 type QuestionDetails = {
@@ -220,6 +225,13 @@ function QuestionItem({ question }: { question: ApiParticipantQuestion }) {
   const isCorrect = question.is_correct;
   const isGraded = question.is_graded;
 
+  // Untuk soal pilihan, nilai benar/salah dihitung dengan set-equality huruf
+  // (mengabaikan urutan & huruf besar/kecil), mis. "A,C,E" vs kunci "A,E,C"
+  // dianggap BENAR. Untuk tipe lain, ikuti flag is_correct dari backend.
+  const finalCorrect: boolean | null = isChoiceType(type)
+    ? isChoiceAnswerCorrect(userAns, qd.answer)
+    : isCorrect;
+
   return (
     <div className="rounded-lg bg-white/70 p-3 ring-1 ring-muted/40">
       <div className="mb-2 flex items-start justify-between gap-4">
@@ -268,47 +280,21 @@ function QuestionItem({ question }: { question: ApiParticipantQuestion }) {
             <span className="text-muted-foreground">Status:</span>
             <Badge
               variant={
-                isCorrect ||
-                (qd.answer &&
-                  userAns &&
-                  qd.answer.trim().toLowerCase() ===
-                    userAns.trim().toLowerCase())
+                finalCorrect
                   ? "default"
-                  : isCorrect === false
+                  : finalCorrect === false
                   ? "destructive"
                   : "secondary"
               }
               className={
-                isCorrect ||
-                (qd.answer &&
-                  userAns &&
-                  qd.answer.trim().toLowerCase() ===
-                    userAns.trim().toLowerCase())
-                  ? "bg-emerald-500 hover:bg-emerald-500"
-                  : ""
+                finalCorrect ? "bg-emerald-500 hover:bg-emerald-500" : ""
               }
             >
-              {isCorrect ||
-              (qd.answer &&
-                userAns &&
-                qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
-                ? "BENAR"
-                : isCorrect === false
-                ? "SALAH"
-                : "—"}
+              {finalCorrect ? "BENAR" : finalCorrect === false ? "SALAH" : "—"}
             </Badge>
-            {isCorrect === false && (
+            {finalCorrect === false && (
               <span className="text-xs text-muted-foreground">
                 Kunci: {qd.answer ?? "—"}
-                {qd.answer && userAns && (
-                  <>
-                    {" "}
-                    {qd.answer.trim().toLowerCase() ===
-                    userAns.trim().toLowerCase()
-                      ? "(Jawaban benar, hanya berbeda huruf besar/kecil)"
-                      : ""}
-                  </>
-                )}
               </span>
             )}
           </>
@@ -321,18 +307,11 @@ function QuestionItem({ question }: { question: ApiParticipantQuestion }) {
       qd.type === "multiple_choice_multiple_answer" ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {(qd.options ?? []).map((opt: { option?: string; text: string }) => {
-            const isUserPick = userAns
-              ? userAns
-                  .split(",")
-                  .map((s) => s.trim())
-                  .includes(opt.option || "")
-              : false;
+            const optKey = (opt.option || "").toLowerCase();
+            const isUserPick = normalizeAnswerSet(userAns).includes(optKey);
             const isKey =
               typeof qd.answer === "string" &&
-              qd.answer
-                .split(",")
-                .map((s) => s.trim())
-                .includes(opt.option || "");
+              normalizeAnswerSet(qd.answer).includes(optKey);
 
             return (
               <Badge

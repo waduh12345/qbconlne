@@ -26,6 +26,11 @@ import {
   useGradeEssayMutation,
 } from "@/services/student/tryout.service";
 import { ParticipantHistoryItem } from "@/types/student/tryout";
+import {
+  isChoiceAnswerCorrect,
+  isChoiceType,
+  normalizeAnswerSet,
+} from "@/lib/answer-correctness";
 
 // --- DEFINISI TIPE ---
 type QuestionDetails = {
@@ -284,6 +289,12 @@ function QuestionItem({
   const isCorrect = question.is_correct;
   const isGraded = question.is_graded;
 
+  // Soal pilihan dinilai dengan set-equality huruf (abaikan urutan & besar/kecil):
+  // "A,C,E" vs kunci "A,E,C" -> BENAR. Tipe lain ikut flag backend.
+  const finalCorrect: boolean | null = isChoiceType(type)
+    ? isChoiceAnswerCorrect(userAns, qd.answer)
+    : isCorrect;
+
   return (
     <div className="rounded-lg bg-white/70 p-3 ring-1 ring-muted/40">
       <div className="mb-2 flex items-start justify-between gap-4">
@@ -343,17 +354,19 @@ function QuestionItem({
             <span className="text-muted-foreground">Status:</span>
             <Badge
               variant={
-                isCorrect
+                finalCorrect
                   ? "default"
-                  : isCorrect === false
+                  : finalCorrect === false
                   ? "destructive"
                   : "secondary"
               }
-              className={isCorrect ? "bg-emerald-500 hover:bg-emerald-500" : ""}
+              className={
+                finalCorrect ? "bg-emerald-500 hover:bg-emerald-500" : ""
+              }
             >
-              {isCorrect ? "BENAR" : isCorrect === false ? "SALAH" : "—"}
+              {finalCorrect ? "BENAR" : finalCorrect === false ? "SALAH" : "—"}
             </Badge>
-            {isCorrect === false && (
+            {finalCorrect === false && (
               <span className="text-xs text-muted-foreground">
                 Kunci: {qd.answer ?? "—"}
               </span>
@@ -368,18 +381,11 @@ function QuestionItem({
       qd.type === "multiple_choice_multiple_answer" ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {(qd.options ?? []).map((opt: { option?: string; text: string }) => {
-            const isUserPick = userAns
-              ? userAns
-                  .split(",")
-                  .map((s) => s.trim())
-                  .includes(opt.option || "")
-              : false;
+            const optKey = (opt.option || "").toLowerCase();
+            const isUserPick = normalizeAnswerSet(userAns).includes(optKey);
             const isKey =
               typeof qd.answer === "string" &&
-              qd.answer
-                .split(",")
-                .map((s) => s.trim())
-                .includes(opt.option || "");
+              normalizeAnswerSet(qd.answer).includes(optKey);
 
             return (
               <Badge

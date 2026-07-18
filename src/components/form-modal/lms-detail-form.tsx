@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { Badge } from "@/components/ui/badge";
+import { resolveContentUrl } from "@/lib/asset-url";
 import {
   Select,
   SelectTrigger,
@@ -66,7 +67,10 @@ export default function LmsDetailForm({
 
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(
-    typeof initialData?.file === "string" ? (initialData?.file as string) : null
+    resolveContentUrl(
+      typeof initialData?.file === "string" ? initialData.file : null,
+      initialData?.media
+    )
   );
 
   const [createItem, { isLoading: creating }] = useCreateLmsDetailMutation();
@@ -298,9 +302,12 @@ export default function LmsDetailForm({
                 onClick={() => {
                   setFile(null);
                   setFilePreview(
-                    typeof initialData?.file === "string"
-                      ? (initialData.file as string)
-                      : null
+                    resolveContentUrl(
+                      typeof initialData?.file === "string"
+                        ? initialData.file
+                        : null,
+                      initialData?.media
+                    )
                   );
                 }}
                 title="Hapus"

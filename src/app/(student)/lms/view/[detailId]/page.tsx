@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LmsDetail } from "@/types/lms-detail";
+import { resolveContentUrl } from "@/lib/asset-url";
 
 const TypeIcon: Record<LmsDetail["type"], React.ReactNode> = {
   video: <FileVideo2 className="h-5 w-5" />,
@@ -34,7 +35,12 @@ export default function LmsViewerPage() {
   });
 
   const activeType = data?.type;
-  const activeFile = data?.file ?? data?.media?.[0]?.original_url ?? null;
+  // Prefer media[].original_url (absolut) lalu fallback ke `file` yang
+  // di-absolut-kan bila relatif, agar PDF/media bisa dibuka setelah upload.
+  const activeFile = resolveContentUrl(
+    typeof data?.file === "string" ? data.file : null,
+    data?.media,
+  );
   const activeLink = data?.link ?? null;
 
   // 🔽 atur tinggi viewer di sini

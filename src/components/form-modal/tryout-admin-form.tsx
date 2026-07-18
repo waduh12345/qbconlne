@@ -761,6 +761,22 @@ export default function TryoutForm({
               Shuffle Questions
             </Label>
           </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="review-result"
+              checked={!!form.is_explanation_released}
+              onCheckedChange={(v) =>
+                setForm({ ...form, is_explanation_released: v })
+              }
+              className="data-[state=checked]:bg-violet-600"
+            />
+            <Label
+              htmlFor="review-result"
+              className="text-sm text-zinc-700 cursor-pointer"
+            >
+              Review Hasil {form.is_explanation_released ? "(On)" : "(Off)"}
+            </Label>
+          </div>
           {!form.parent_id && (
             <div className="flex items-center gap-3">
               <Switch
@@ -778,6 +794,16 @@ export default function TryoutForm({
             </div>
           )}
         </div>
+
+        {/* Keterangan Review Hasil */}
+        <p className="mt-3 text-xs text-zinc-500">
+          <strong>Review Hasil On:</strong> siswa dapat melihat detail hasil
+          (soal, jawabannya, dan kunci jawaban) walaupun tryout masih
+          berlangsung.{" "}
+          <strong>Off:</strong> selama tryout masih aktif siswa hanya melihat
+          skor dan rekap benar/salah. Detail otomatis terbuka setelah masa
+          tryout berakhir.
+        </p>
       </div>
 
       {/* Section 4: Pengelompokan Score (Group Number & Pembagian) */}
