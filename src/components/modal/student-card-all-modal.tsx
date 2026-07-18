@@ -202,7 +202,7 @@ function buildPrintHTML(students: StudentLite[]): string {
   @page { size: A4; margin: ${PAGE_PADDING_MM}mm; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html,body { margin:0; padding:0; background: #ffffff; }
-  body { padding: 0; min-height: 100vh; font-family: sans-serif; }
+  body { padding: 0; min-height: 100vh; min-height: 100dvh; font-family: sans-serif; }
 
   ${CARD_STYLES}
 

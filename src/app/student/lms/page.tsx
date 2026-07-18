@@ -123,10 +123,12 @@ function LmsPageInner() {
     ?.student;
   const isPremium = Boolean(sessionStudent?.is_premium);
 
-  // jangan fetch LMS kalau bukan premium — gunakan skip di RTK Query
+  // Backend gating: non-premium hanya menerima LMS gratis (jenjang_id=null);
+  // premium menerima yang gratis + jenjang yang cocok dengan class.jenjang_id.
+  // Frontend tidak perlu skip — biarkan backend yang filter.
   const { data: lmsData, isFetching: isFetchingLms } = useGetLmsQuery(
     { page, paginate, search },
-    { skip: !isPremium }
+    { skip: !currentUserId }
   );
 
   const rows: Lms[] = lmsData?.data ?? [];
@@ -160,54 +162,10 @@ function LmsPageInner() {
     );
   }
 
-  // jika tidak premium -> tampilkan pesan upgrade / tidak bisa akses
-  if (!isPremium) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(14,165,233,0.03),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(99,102,241,0.03),transparent_40%)]">
-        <div className="mx-auto w-full max-w-3xl px-4 py-16">
-          <div className="rounded-2xl border border-sky-100 bg-white p-8 text-center shadow-sm">
-            <BookOpen className="mx-auto mb-4 h-8 w-8 text-sky-600" />
-            <h2 className="mb-2 text-xl font-semibold">
-              Akses Materi Terbatas
-            </h2>
-            <p className="mb-4 text-sm text-zinc-600">
-              Akun kamu belum terdaftar sebagai premium. Hanya pengguna dengan{" "}
-              <strong>status premium</strong> yang dapat melihat materi LMS.
-            </p>
-
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <a
-                href={`https://wa.me/6282261936478?text=${encodeURIComponent(
-                  "Halo, saya ingin upgrade ke Premium. Bisa dibantu?"
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button className="rounded-xl bg-sky-500 hover:bg-sky-600">
-                  Upgrade ke Premium
-                </Button>
-              </a>
-
-              <Button
-                variant="outline"
-                className="rounded-xl border-sky-200 text-sky-700"
-                onClick={() => router.push("/")}
-              >
-                Kembali ke Beranda
-              </Button>
-            </div>
-
-            <div className="mt-6 text-xs text-zinc-500">
-              Jika kamu yakin sudah berlangganan tetapi masih tidak bisa
-              mengakses, silakan hubungi support atau logout lalu login kembali.
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // jika premium -> render UI LMS seperti semula (menggunakan data lmsData)
+  // Premium gating sekarang ditangani backend (per-konten, per-jenjang).
+  // Non-premium tetap bisa akses page ini & melihat konten gratis.
+  // Render UI LMS dari data lmsData
+  void isPremium; // disimpan untuk dipakai di banner upsell di bawah
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(14,165,233,0.06),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(99,102,241,0.06),transparent_40%)]">
       <div className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -307,6 +265,12 @@ function LmsPageInner() {
                     )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {item.jenjang_id !== null && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                          ★ Premium
+                          {item.jenjang_name ? ` · ${item.jenjang_name}` : ""}
+                        </span>
+                      )}
                       {item.subject_name && (
                         <Badge tone="sky">{item.subject_name}</Badge>
                       )}

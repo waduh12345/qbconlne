@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@import "tailwindcss";
-
 @import "uploadthing/tw/v4";
 @source "../node_modules/@uploadthing/react/dist";
 
@@ -48,8 +46,47 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Fallback hex/rgb dideklarasikan dulu; OKLCH yang menyusul akan menimpa
+   di Safari 15.4+ / Chrome 111+. Browser lama (iOS 14, Chrome <111) abaikan
+   deklarasi OKLCH yang invalid → fallback yang dipakai, sehingga tema tidak
+   pecah jadi putih/hitam polos. */
 :root {
   --radius: 0.625rem;
+
+  /* Fallback (hex) */
+  --background: #ffffff;
+  --foreground: #252525;
+  --card: #ffffff;
+  --card-foreground: #252525;
+  --popover: #ffffff;
+  --popover-foreground: #252525;
+  --primary: #353535;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #353535;
+  --muted: #f5f5f5;
+  --muted-foreground: #8e8e8e;
+  --accent: #f5f5f5;
+  --accent-foreground: #353535;
+  --destructive: #dc2626;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #b4b4b4;
+  --chart-1: #e8855e;
+  --chart-2: #4dada6;
+  --chart-3: #2f4f7f;
+  --chart-4: #d4b341;
+  --chart-5: #d68f43;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #252525;
+  --sidebar-primary: #353535;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #353535;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #b4b4b4;
+
+  /* Modern (OKLCH) — overrides fallback di browser yang support */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -84,6 +121,40 @@
 }
 
 .dark {
+  /* Fallback (hex) */
+  --background: #252525;
+  --foreground: #fafafa;
+  --card: #353535;
+  --card-foreground: #fafafa;
+  --popover: #353535;
+  --popover-foreground: #fafafa;
+  --primary: #ebebeb;
+  --primary-foreground: #353535;
+  --secondary: #404040;
+  --secondary-foreground: #fafafa;
+  --muted: #404040;
+  --muted-foreground: #b4b4b4;
+  --accent: #404040;
+  --accent-foreground: #fafafa;
+  --destructive: #d4554b;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #8e8e8e;
+  --chart-1: #4a4cb5;
+  --chart-2: #3aa583;
+  --chart-3: #d68f43;
+  --chart-4: #a85cc7;
+  --chart-5: #e34557;
+  --sidebar: #353535;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #4a4cb5;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #404040;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #8e8e8e;
+
+  /* Modern (OKLCH) */
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

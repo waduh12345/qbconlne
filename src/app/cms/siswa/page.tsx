@@ -783,7 +783,11 @@ export default function StudentsPage() {
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
-                            {u.school_name || u.sc_name || "-"}
+                            {(u as { school_name_text?: string | null })
+                              .school_name_text ||
+                              u.school_name ||
+                              u.sc_name ||
+                              "-"}
                           </div>
                         </TableCell>
 

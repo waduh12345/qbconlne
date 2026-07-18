@@ -54,6 +54,31 @@ function formatHMS(totalSeconds: number): string {
   return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
+/**
+ * Normalisasi jawaban multiple-choice (set semantics):
+ * lowercase, trim, dedupe, sort. Hasil: deterministic tanpa peduli urutan klik.
+ * "C, A, D" -> "a,c,d"
+ */
+function normalizeMcAnswer(values: string[]): string {
+  const cleaned = values
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => v.length > 0);
+  return Array.from(new Set(cleaned)).sort().join(",");
+}
+
+/** Parse user_answer string ke array tersortir & lowercase. */
+function parseMcAnswer(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s.length > 0),
+    ),
+  ).sort();
+}
+
 /** Key penyimpanan deadline di localStorage */
 function timerStorageKey(participantTestId: number, categoryId: string | null) {
   return categoryId
@@ -310,31 +335,36 @@ export default function ExamPage() {
     const key = timerStorageKey(participantTestId, categoryId);
     const now = Date.now();
 
-    // Jika server beri remaining_seconds, selalu prioritaskan itu (sinkron)
+    // Baca dari localStorage terlebih dahulu
+    let fromStorage = 0;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) fromStorage = Number(raw);
+    } catch {}
+
+    // Validasi deadline localStorage (maks 24 jam ke depan supaya tidak usang)
+    const storageValid =
+      fromStorage > 0 &&
+      fromStorage > now &&
+      fromStorage - now < 24 * 3600 * 1000;
+
     if (serverInitialSeconds > 0) {
-      const deadline = now + serverInitialSeconds * 1000;
+      const serverDeadline = now + serverInitialSeconds * 1000;
+      // Ambil yang lebih kecil (waktu habis lebih cepat) agar:
+      // - localStorage menang jika server selalu mengembalikan total_time penuh (cegah reset)
+      // - server menang jika admin mengurangi waktu atau ini load pertama kali
+      const deadline = storageValid
+        ? Math.min(serverDeadline, fromStorage)
+        : serverDeadline;
       endAtRef.current = deadline;
       try {
         localStorage.setItem(key, String(deadline));
       } catch {}
+    } else if (storageValid) {
+      // Tidak ada data dari server, gunakan localStorage
+      endAtRef.current = fromStorage;
     } else {
-      // Kalau tidak ada dari server, coba baca dari storage
-      let fromStorage = 0;
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) fromStorage = Number(raw);
-      } catch {}
-
-      // Validasi deadline (maks 24 jam ke depan supaya tidak usang)
-      if (
-        fromStorage &&
-        fromStorage > now &&
-        fromStorage - now < 24 * 3600 * 1000
-      ) {
-        endAtRef.current = fromStorage;
-      } else {
-        endAtRef.current = 0; // tidak ada timer
-      }
+      endAtRef.current = 0; // tidak ada timer
     }
 
     // Set sisa awal
@@ -700,27 +730,42 @@ function MCControl({
   saving: boolean;
 }) {
   const [value, setValue] = useState<string[]>(
-    multiple ? (initial ? initial.split(",") : []) : initial ? [initial] : []
+    multiple
+      ? parseMcAnswer(initial)
+      : initial
+      ? [initial.trim().toLowerCase()]
+      : []
   );
 
   useEffect(() => {
     setValue(
-      multiple ? (initial ? initial.split(",") : []) : initial ? [initial] : []
+      multiple
+        ? parseMcAnswer(initial)
+        : initial
+        ? [initial.trim().toLowerCase()]
+        : []
     );
   }, [initial, multiple, questionId]);
 
   const name = `mc-${questionId}`;
 
   const apply = (next: string[]) => {
-    setValue(next);
-    const joined = multiple ? next.join(",") : next[0] ?? "";
-    onSubmit(joined); // autosave
+    if (multiple) {
+      const normalized = parseMcAnswer(next.join(","));
+      setValue(normalized);
+      onSubmit(normalizeMcAnswer(normalized)); // autosave - sorted, dedupe, lowercase
+    } else {
+      const single = (next[0] ?? "").trim().toLowerCase();
+      setValue(single ? [single] : []);
+      onSubmit(single);
+    }
   };
 
   return (
     <div className="space-y-3">
       {options.map((o) => {
-        const checked = value.includes(o.option);
+        const optKey = (o.option ?? "").trim().toLowerCase();
+        const checked = value.includes(optKey);
         return (
           <label
             key={o.option}
@@ -742,11 +787,11 @@ function MCControl({
                   if (multiple) {
                     apply(
                       checked
-                        ? value.filter((v) => v !== o.option)
-                        : [...value, o.option]
+                        ? value.filter((v) => v !== optKey)
+                        : [...value, optKey]
                     );
                   } else {
-                    apply([o.option]);
+                    apply([optKey]);
                   }
                 }}
               />
@@ -763,7 +808,11 @@ function MCControl({
       <div className="flex justify-end pt-2">
         <Button
           className="rounded-xl bg-sky-600 hover:bg-sky-700"
-          onClick={() => onSubmit(multiple ? value.join(",") : value[0] ?? "")}
+          onClick={() =>
+            onSubmit(
+              multiple ? normalizeMcAnswer(value) : value[0] ?? ""
+            )
+          }
           disabled={saving}
         >
           {saving ? (

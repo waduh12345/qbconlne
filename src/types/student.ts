@@ -14,7 +14,10 @@ export interface Student {
   email: string;
   phone: string | null;
   sc_name?: string;
+  // school_name = freetext yang diisi siswa saat register (jika tidak pilih school_id)
   school_name: string;
+  // school_name_text = nama sekolah ter-resolve dari school_id (lebih prioritas untuk display)
+  school_name_text?: string | null;
   password: string;
   password_confirmation: string;
   role_id: number;

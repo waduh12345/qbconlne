@@ -6,30 +6,17 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
-import dynamic from "next/dynamic";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
   Legend,
-  ChartOptions,
-} from "chart.js";
+  ResponsiveContainer,
+} from "recharts";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
-const Bar = dynamic(() => import("react-chartjs-2").then((m) => m.Bar), {
-  ssr: false,
-});
 
 type WithScoreBreakdown = { total_correct: number; total_incorrect: number };
 function hasBreakdown(
@@ -69,19 +56,10 @@ export default function TryoutResultPage() {
   const latest = attempts[attempts.length - 1];
   const showBreakdown = !!latest && hasBreakdown(latest);
 
-  const labels = attempts.map((a) =>
-    new Date(a.end_date ?? a.updated_at).toLocaleString("id-ID")
-  );
-  const dataset = attempts.map((a) => a.grade ?? 0);
-
-  const options: ChartOptions<"bar"> = {
-    responsive: true,
-    plugins: {
-      legend: { display: true, position: "top" },
-      title: { display: true, text: "Perkembangan Nilai" },
-    },
-    scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } },
-  };
+  const chartData = attempts.map((a) => ({
+    label: new Date(a.end_date ?? a.updated_at).toLocaleString("id-ID"),
+    Nilai: a.grade ?? 0,
+  }));
 
   return (
     <div className="space-y-8">
@@ -119,25 +97,37 @@ export default function TryoutResultPage() {
 
       {/* Chart Card */}
       <section className="overflow-hidden rounded-3xl border bg-white p-6 shadow-sm">
+        <div className="mb-1 text-base font-semibold text-zinc-800">
+          Perkembangan Nilai
+        </div>
         <div className="mb-3 text-sm text-zinc-600">
           Ringkasan nilai dari test yang pernah kamu kerjakan.
         </div>
         {isFetching ? (
           <div className="h-56 animate-pulse rounded-xl bg-zinc-100" />
         ) : attempts.length ? (
-          <Bar
-            options={options}
-            data={{
-              labels,
-              datasets: [
-                {
-                  label: "Nilai",
-                  data: dataset,
-                  backgroundColor: "rgba(14,165,233,0.45)", // sky-500/45
-                },
-              ],
-            }}
-          />
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 10, right: 20, bottom: 30, left: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11 }}
+                  interval={0}
+                  angle={-15}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Nilai" fill="rgba(14,165,233,0.7)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <div className="rounded-lg border border-dashed p-10 text-center text-zinc-600">
             Belum ada hasil.

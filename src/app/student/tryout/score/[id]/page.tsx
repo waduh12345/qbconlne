@@ -71,6 +71,98 @@ type QuestionDetailsVariant =
 
 // --- Components Helpers ---
 
+/**
+ * Normalisasi jawaban: lowercase, trim, dedupe, sort.
+ * Dipakai untuk perbandingan set-equality multiple-choice.
+ */
+const normalizeAnswerSet = (raw: string | null | undefined): string[] => {
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s.length > 0),
+    ),
+  ).sort();
+};
+
+const arrEqual = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
+/**
+ * Format tampilan jawaban siswa: huruf kapital, urut alphabet, dipisah koma.
+ * Mis. "c,a,d" -> "A, C, D".
+ */
+const formatAnswerDisplay = (raw: string | null | undefined): string => {
+  const arr = normalizeAnswerSet(raw);
+  if (arr.length === 0) return "-";
+  return arr.map((s) => s.toUpperCase()).join(", ");
+};
+
+/**
+ * Hitung correctness client-side. Override `is_correct` dari backend supaya
+ * (1) urutan klik tidak mempengaruhi MC multi-answer, dan
+ * (2) jawaban kosong tidak pernah dianggap benar walau backend keliru.
+ */
+const deriveCorrectness = (
+  answerData: ParticipantAnswer,
+): { isFullyCorrect: boolean; isPartial: boolean } => {
+  const { user_answer, point, is_correct, question_details } = answerData;
+  const userEmpty = !user_answer || user_answer.trim() === "";
+  const currentPoint = point ?? 0;
+  const totalPoint =
+    (question_details as { total_point?: number }).total_point ?? 0;
+  const t = (question_details as { type: string }).type;
+
+  if (userEmpty) {
+    return { isFullyCorrect: false, isPartial: false };
+  }
+
+  if (
+    t === "multiple_choice" ||
+    t === "true_false" ||
+    t === "multiple_choice_multiple_answer"
+  ) {
+    const correctKey = (question_details as QuestionDetailsMultipleChoice)
+      .answer;
+    if (!correctKey) {
+      return { isFullyCorrect: false, isPartial: currentPoint > 0 };
+    }
+    const userSet = normalizeAnswerSet(user_answer);
+    const keySet = normalizeAnswerSet(correctKey);
+    if (arrEqual(userSet, keySet)) {
+      return { isFullyCorrect: true, isPartial: false };
+    }
+    return { isFullyCorrect: false, isPartial: currentPoint > 0 };
+  }
+
+  if (t === "multiple_choice_multiple_category") {
+    const opts = (question_details as QuestionDetailsCategorized).options;
+    const userArr = (user_answer ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase());
+    if (userArr.length !== opts.length) {
+      return { isFullyCorrect: false, isPartial: currentPoint > 0 };
+    }
+    const allMatch = opts.every((o, i) => {
+      const correct = o.accurate ? "accurate" : "not_accurate";
+      return userArr[i] === correct;
+    });
+    return {
+      isFullyCorrect: allMatch,
+      isPartial: !allMatch && currentPoint > 0,
+    };
+  }
+
+  // Essay → tetap mengikuti backend (manual grading oleh guru).
+  const fullyByPoint = currentPoint > 0 && currentPoint === totalPoint;
+  return {
+    isFullyCorrect: fullyByPoint ? true : !!is_correct,
+    isPartial: currentPoint > 0 && !fullyByPoint,
+  };
+};
+
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("id-ID", {
@@ -98,19 +190,8 @@ const MultipleChoiceReview = ({
   userAnswer: string | null;
   correctAnswer: string | null;
 }) => {
-  const userAnswerList = userAnswer
-    ? userAnswer
-        .toLowerCase()
-        .split(",")
-        .map((s) => s.trim())
-    : [];
-
-  const correctAnswerList = correctAnswer
-    ? correctAnswer
-        .toLowerCase()
-        .split(",")
-        .map((s) => s.trim())
-    : [];
+  const userAnswerList = normalizeAnswerSet(userAnswer);
+  const correctAnswerList = normalizeAnswerSet(correctAnswer);
 
   return (
     <div className="space-y-3">
@@ -174,7 +255,7 @@ const MultipleChoiceReview = ({
 
         return (
           <div
-            key={i}
+            key={`${opt.option ?? "opt"}-${i}`}
             className={cn(
               "relative flex items-start gap-3 rounded-lg border p-4 transition-all",
               containerClass
@@ -288,7 +369,7 @@ const QuestionReviewItem = ({
   index: number;
 }) => {
   const questionDetails = answerData.question_details as QuestionDetailsVariant;
-  const { user_answer, is_correct, point } = answerData;
+  const { user_answer, point } = answerData;
   const type = questionDetails.type;
 
   let displayUserAnswer = "-";
@@ -299,20 +380,16 @@ const QuestionReviewItem = ({
     type === "true_false" ||
     type === "multiple_choice_multiple_answer"
   ) {
-    displayUserAnswer = user_answer ? user_answer.toUpperCase() : "-";
-    displayCorrectKey = questionDetails.answer
-      ? questionDetails.answer.toUpperCase()
-      : "-";
+    displayUserAnswer = formatAnswerDisplay(user_answer);
+    displayCorrectKey = formatAnswerDisplay(questionDetails.answer);
   } else if (type === "multiple_choice_multiple_category") {
     displayUserAnswer = "Lihat Detail";
     displayCorrectKey = "Lihat Detail";
   }
 
-  const currentPoint = point ?? 0;
-  const totalPoint = questionDetails.total_point ?? 0;
-  // Derive correctness from point comparison: full points = correct, some points = partial
-  const isFullyCorrect = currentPoint > 0 && currentPoint === totalPoint ? true : is_correct;
-  const isPartial = currentPoint > 0 && !isFullyCorrect;
+  // Hitung sendiri (override backend) supaya: (1) urutan klik tidak salah
+  // dianggap salah, dan (2) jawaban kosong tidak pernah dihitung benar.
+  const { isFullyCorrect, isPartial } = deriveCorrectness(answerData);
 
   return (
     <Card className="mb-6 overflow-hidden border-zinc-200 shadow-sm">
@@ -534,19 +611,17 @@ export default function StudentTryoutScorePage({
 
   const categories = participant_question_categories ?? [];
 
-  // Hitung total soal benar dan salah dari semua kategori
+  // Hitung total soal benar dan salah dari semua kategori - pakai deriveCorrectness
+  // supaya statistik konsisten dengan badge per soal.
   const totalStats = categories.reduce(
     (acc, cat) => {
       const questions = (cat.participant_questions ?? []) as ParticipantAnswer[];
       questions.forEach((q) => {
-        const qPoint = q.point ?? 0;
-        const qTotalPoint = (q.question_details as QuestionDetailsVariant)?.total_point ?? 0;
-        const qIsCorrect = (qPoint > 0 && qPoint === qTotalPoint) || q.is_correct;
-        const qIsPartial = qPoint > 0 && !qIsCorrect;
+        const { isFullyCorrect, isPartial } = deriveCorrectness(q);
         acc.total += 1;
-        if (qIsCorrect) {
+        if (isFullyCorrect) {
           acc.correct += 1;
-        } else if (qIsPartial) {
+        } else if (isPartial) {
           acc.partial += 1;
         } else {
           acc.wrong += 1;

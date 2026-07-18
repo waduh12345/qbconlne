@@ -229,6 +229,12 @@ function LmsPageInner() {
                     )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {item.jenjang_id !== null && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                          ★ Premium
+                          {item.jenjang_name ? ` · ${item.jenjang_name}` : ""}
+                        </span>
+                      )}
                       {item.subject_name && (
                         <Badge tone="sky">{item.subject_name}</Badge>
                       )}

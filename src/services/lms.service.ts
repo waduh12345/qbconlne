@@ -5,11 +5,15 @@ interface GetLmsParams {
   page: number;
   paginate: number;
   search?: string;
+  jenjang_id?: number | null;
+  school_id?: number | null;
+  subject_id?: number | null;
+  subject_sub_id?: number | null;
 }
 
 export const lmsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ GET all LMS (paginated)
+    // ✅ GET all LMS (paginated + filter)
     getLms: builder.query<
       {
         data: Lms[];
@@ -20,11 +24,27 @@ export const lmsApi = apiSlice.injectEndpoints({
       },
       GetLmsParams
     >({
-      query: ({ page, paginate, search = "" }) => ({
-        url: "/lms/lms",
-        method: "GET",
-        params: { page, paginate, search },
-      }),
+      query: ({
+        page,
+        paginate,
+        search = "",
+        jenjang_id,
+        school_id,
+        subject_id,
+        subject_sub_id,
+      }) => {
+        const params: Record<string, string | number> = {
+          page,
+          paginate,
+          search,
+        };
+        if (typeof jenjang_id === "number") params.jenjang_id = jenjang_id;
+        if (typeof school_id === "number") params.school_id = school_id;
+        if (typeof subject_id === "number") params.subject_id = subject_id;
+        if (typeof subject_sub_id === "number")
+          params.subject_sub_id = subject_sub_id;
+        return { url: "/lms/lms", method: "GET", params };
+      },
       transformResponse: (response: {
         code: number;
         message: string;

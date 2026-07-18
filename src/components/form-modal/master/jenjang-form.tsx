@@ -14,84 +14,62 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Combobox } from "@/components/ui/combo-box";
 
-import type { Class } from "@/types/master/class";
-import type { Jenjang } from "@/types/master/jenjang";
+import type { JenjangPayload } from "@/types/master/jenjang";
 
 import {
-  useCreateClassMutation,
-  useGetClassByIdQuery,
-  useUpdateClassMutation,
-} from "@/services/master/class.service";
-import { useGetJenjangListQuery } from "@/services/master/jenjang.service";
+  useCreateJenjangMutation,
+  useGetJenjangByIdQuery,
+  useUpdateJenjangMutation,
+} from "@/services/master/jenjang.service";
 
 type Mode = "create" | "update";
 
-interface ClassFormProps {
+interface JenjangFormProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSuccess: (mode: Mode) => void;
-  classId?: number;
+  jenjangId?: number;
 }
 
-export default function ClassForm({
+export default function JenjangForm({
   open,
   onOpenChange,
   onSuccess,
-  classId,
-}: ClassFormProps) {
-  const isEdit = typeof classId === "number";
+  jenjangId,
+}: JenjangFormProps) {
+  const isEdit = typeof jenjangId === "number";
 
-  const { data: detail, isFetching: loadingDetail } = useGetClassByIdQuery(
-    classId as number,
+  const { data: detail, isFetching: loadingDetail } = useGetJenjangByIdQuery(
+    jenjangId as number,
     { skip: !isEdit }
   );
 
   const [name, setName] = React.useState<string>("");
+  const [value, setValue] = React.useState<string>("");
   const [description, setDescription] = React.useState<string>("");
   const [status, setStatus] = React.useState<boolean>(true);
-  const [jenjangId, setJenjangId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (detail && isEdit) {
       setName(detail.name ?? "");
+      setValue(detail.value ?? "");
       setDescription(detail.description ?? "");
       setStatus(Boolean(detail.status));
-      setJenjangId(detail.jenjang_id ?? null);
     }
   }, [detail, isEdit]);
 
   React.useEffect(() => {
     if (open && !isEdit) {
       setName("");
+      setValue("");
       setDescription("");
       setStatus(true);
-      setJenjangId(null);
     }
   }, [open, isEdit]);
 
-  // jenjang dropdown
-  const [jenjangSearch, setJenjangSearch] = React.useState("");
-  const { data: jenjangResp, isFetching: loadingJenjang } =
-    useGetJenjangListQuery({ page: 1, paginate: 50, search: jenjangSearch });
-  const jenjangsRaw: Jenjang[] = jenjangResp?.data ?? [];
-
-  // fallback option saat edit jika selected jenjang tidak ada di page 1
-  const jenjangOptions = React.useMemo<Jenjang[]>(() => {
-    if (
-      isEdit &&
-      jenjangId &&
-      detail?.jenjang &&
-      !jenjangsRaw.some((j) => j.id === jenjangId)
-    ) {
-      return [detail.jenjang, ...jenjangsRaw];
-    }
-    return jenjangsRaw;
-  }, [isEdit, jenjangId, detail, jenjangsRaw]);
-
-  const [createClass, { isLoading: creating }] = useCreateClassMutation();
-  const [updateClass, { isLoading: updating }] = useUpdateClassMutation();
+  const [createJenjang, { isLoading: creating }] = useCreateJenjangMutation();
+  const [updateJenjang, { isLoading: updating }] = useUpdateJenjangMutation();
   const submitting = creating || updating;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,19 +79,19 @@ export default function ClassForm({
       return;
     }
 
-    const payload: Partial<Class> = {
+    const payload: JenjangPayload = {
       name: name.trim(),
+      value: value.trim() || null,
       description: description.trim() || null,
       status,
-      jenjang_id: jenjangId,
     };
 
     try {
       if (isEdit) {
-        await updateClass({ id: classId as number, payload }).unwrap();
+        await updateJenjang({ id: jenjangId as number, payload }).unwrap();
         onSuccess("update");
       } else {
-        await createClass(payload).unwrap();
+        await createJenjang(payload).unwrap();
         onSuccess("create");
       }
       onOpenChange(false);
@@ -133,7 +111,9 @@ export default function ClassForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Kelas" : "Tambah Kelas"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Jenjang" : "Tambah Jenjang"}
+          </DialogTitle>
         </DialogHeader>
 
         {loadingDetail && isEdit ? (
@@ -144,27 +124,24 @@ export default function ClassForm({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Jenjang (opsional)</Label>
-              <Combobox<Jenjang>
-                value={jenjangId}
-                onChange={(v) => setJenjangId(v)}
-                onSearchChange={setJenjangSearch}
-                data={jenjangOptions}
-                isLoading={loadingJenjang}
-                placeholder="Pilih Jenjang"
-                getOptionLabel={(j) =>
-                  j.value ? `${j.name} — ${j.value}` : j.name
-                }
+              <Label>Nama Jenjang</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="cth: SMA"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Nama Kelas</Label>
+              <Label>Daftar Kelas / Value</Label>
               <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="cth: X IPA 1"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="cth: X, XI, XII"
               />
+              <p className="text-xs text-muted-foreground">
+                Pisahkan dengan koma.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -172,7 +149,7 @@ export default function ClassForm({
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Keterangan kelas (opsional)"
+                placeholder="Keterangan jenjang (opsional)"
               />
             </div>
 
@@ -180,7 +157,7 @@ export default function ClassForm({
               <div>
                 <div className="text-sm font-medium">Status</div>
                 <div className="text-xs text-muted-foreground">
-                  Aktif/nonaktifkan kelas
+                  Aktif/nonaktifkan jenjang
                 </div>
               </div>
               <Switch checked={status} onCheckedChange={setStatus} />

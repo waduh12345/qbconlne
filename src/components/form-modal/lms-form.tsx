@@ -10,6 +10,8 @@ import {
 
 import { useGetSubjectListQuery } from "@/services/master/mapel.service";
 import { useGetSubjectSubListQuery } from "@/services/master/submapel.service";
+import { useGetJenjangListQuery } from "@/services/master/jenjang.service";
+import type { Jenjang } from "@/types/master/jenjang";
 // import { useGetSchoolListQuery } from "@/services/master/school.service";
 
 import { Input } from "@/components/ui/input";
@@ -108,6 +110,28 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
   //   }
   //   return schoolsRaw;
   // }, [isEdit, schoolId, schoolsRaw, initialData]);
+
+  // ====== Jenjang (Konten Premium per Jenjang) ======
+  const [jenjangId, setJenjangId] = useState<number | null>(
+    initialData?.jenjang_id ?? null
+  );
+  const [jenjangSearch, setJenjangSearch] = useState("");
+  const { data: jenjangResp, isFetching: loadingJenjang } =
+    useGetJenjangListQuery({ page: 1, paginate: 50, search: jenjangSearch });
+  const jenjangsRaw: Jenjang[] = jenjangResp?.data ?? [];
+
+  const jenjangOptions = useMemo<Jenjang[]>(() => {
+    // fallback: kalau edit & jenjang terpilih tidak ada di page 1, prepend dari initialData
+    if (
+      isEdit &&
+      jenjangId &&
+      initialData?.jenjang &&
+      !jenjangsRaw.some((j) => j.id === jenjangId)
+    ) {
+      return [initialData.jenjang, ...jenjangsRaw];
+    }
+    return jenjangsRaw;
+  }, [isEdit, jenjangId, initialData, jenjangsRaw]);
 
   // ====== Subject / Sub Subject ======
   const [subjectId, setSubjectId] = useState<number | null>(
@@ -235,7 +259,9 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
 
   const buildFormData = (): FormData => {
     const fd = new FormData();
-    if (schoolId !== null) fd.append("school_id", String(schoolId)); // 🆕
+    if (schoolId !== null) fd.append("school_id", String(schoolId));
+    // jenjang_id null → konten gratis (semua siswa). Set → konten premium per-jenjang.
+    if (jenjangId !== null) fd.append("jenjang_id", String(jenjangId));
     if (subjectId !== null) fd.append("subject_id", String(subjectId));
     if (subjectSubId !== null)
       fd.append("subject_sub_id", String(subjectSubId));
@@ -304,6 +330,45 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
           getOptionLabel={getOptionLabelSchool}
         />
       </div> */}
+
+      {/* Jenjang (Konten Premium per Jenjang) */}
+      <div className="rounded-2xl border bg-gradient-to-br from-amber-50/40 to-background p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold">
+            Konten Premium per Jenjang
+          </Label>
+          {jenjangId !== null && (
+            <Badge className="bg-amber-500 hover:bg-amber-500 text-white">
+              Premium
+            </Badge>
+          )}
+        </div>
+        <Combobox<Jenjang>
+          value={jenjangId}
+          onChange={(v) => setJenjangId(v)}
+          onSearchChange={setJenjangSearch}
+          data={jenjangOptions}
+          isLoading={loadingJenjang}
+          placeholder="Kosongkan untuk konten gratis (semua siswa)"
+          getOptionLabel={(j) => (j.value ? `${j.name} — ${j.value}` : j.name)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Kosongkan = konten gratis untuk semua siswa. Pilih jenjang =
+          konten dikunci untuk siswa premium pada jenjang tersebut.
+        </p>
+        {jenjangId !== null && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => setJenjangId(null)}
+          >
+            <X className="mr-1 h-3 w-3" />
+            Hapus pilihan jenjang
+          </Button>
+        )}
+      </div>
 
       {/* Subject & Sub Subject */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -3,7 +3,7 @@ import type { Class } from "@/types/master/class";
 
 export const classApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Get all (paginated + optional search)
+    // ✅ Get all (paginated + optional search + filter jenjang)
     getClassList: builder.query<
       {
         data: Class[];
@@ -12,13 +12,20 @@ export const classApi = apiSlice.injectEndpoints({
         total: number;
         per_page: number;
       },
-      { page: number; paginate: number; search?: string }
+      {
+        page: number;
+        paginate: number;
+        search?: string;
+        jenjang_id?: number | null;
+      }
     >({
-      query: ({ page, paginate, search }) => {
+      query: ({ page, paginate, search, jenjang_id }) => {
         const params = new URLSearchParams();
         params.set("page", String(page));
         params.set("paginate", String(paginate));
         if (search && search.trim()) params.set("search", search.trim());
+        if (typeof jenjang_id === "number")
+          params.set("jenjang_id", String(jenjang_id));
         return {
           url: `master/class?${params.toString()}`,
           method: "GET",

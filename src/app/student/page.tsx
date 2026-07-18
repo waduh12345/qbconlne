@@ -8,21 +8,19 @@ import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.ser
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { useGetTryoutListQuery } from "@/services/tryout/sub-tryout.service";
 import { useGetTestListQuery } from "@/services/tryout/test.service";
-import { 
-  RadarChart, 
-  Radar, 
-  PolarGrid, 
-  PolarAngleAxis, 
-  PolarRadiusAxis, 
+import {
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
   ResponsiveContainer,
   Legend,
   Tooltip
 } from "recharts";
+import SpiderComparisonView from "@/components/student/spider-comparison-view";
 
 /** ===== Types ===== */
 type GroupedTryoutData = {
@@ -644,7 +642,7 @@ function TryoutResultsSection({
           {selectedTryoutId && (
             <div>
               <label className="mb-2 block text-sm font-medium text-zinc-700">
-                Pilih Tryout Parent:
+                Pilih Tryout Parent (opsional, untuk lihat detail per paket):
               </label>
               <select
                 value={selectedParentTestId ?? ""}
@@ -670,6 +668,23 @@ function TryoutResultsSection({
             </div>
           )}
         </div>
+
+        {/* === Perbandingan Antar Seri Tryout (per Kategori) === */}
+        {selectedTryoutId && (
+          <div className="mb-6">
+            <SpiderComparisonView
+              categoryId={selectedTryoutId}
+              categoryTitle={
+                tryoutList?.data.find((t) => t.id === selectedTryoutId)
+                  ?.title ?? "—"
+              }
+              // TODO: ganti `forceDummy` ke false dan teruskan prop `data`
+              // setelah endpoint API tersedia. Lihat prompt API di akhir
+              // section ini.
+              forceDummy
+            />
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoadingHistory && selectedParentTestId && (
@@ -857,18 +872,19 @@ function TryoutResultsSection({
   );
 }
 
-/** ===== Export Functions (declared before use) ===== */
-function exportAllToExcel(
+/** ===== Export Functions (declared before use) =====
+ * xlsx, jspdf, html2canvas dimuat secara dynamic agar tidak masuk bundle awal.
+ */
+async function exportAllToExcel(
   allGroupData: GroupedTryoutData[],
   userName: string,
   userEmail: string,
   schoolName: string,
   totalScore: number
 ) {
-  // Gabungkan semua sub test dari semua group
+  const XLSX = await import("xlsx");
   const allSubTests = allGroupData.flatMap((group) => group.subTests);
 
-  // Prepare data
   const worksheetData = [
     ["HASIL UJIAN TRYOUT - SEMUA"],
     [],
@@ -886,24 +902,13 @@ function exportAllToExcel(
     ["Total Score", "", Number(totalScore.toFixed(2))],
   ];
 
-  // Create workbook
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
-  // Style: Merge title row
-  ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-  ];
-
-  // Set column widths
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
   ws["!cols"] = [{ wch: 10 }, { wch: 40 }, { wch: 15 }];
-
   XLSX.utils.book_append_sheet(wb, ws, "Hasil Tryout");
 
-  // Generate filename
   const filename = `hasil_ujian_tryout_semua_${new Date().toISOString().split("T")[0]}.xlsx`;
-
-  // Download
   XLSX.writeFile(wb, filename);
 }
 
@@ -1097,6 +1102,10 @@ async function exportAllToPDF(
   // Wait for content to load, then generate PDF
   setTimeout(async () => {
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
       const canvas = await html2canvas(printWindow.document.body, {
         scale: 2,
         useCORS: true,
@@ -1149,11 +1158,11 @@ function ExportButtons({
   schoolName: string;
   totalScore: number;
 }) {
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (allGroupData) {
-      exportAllToExcel(allGroupData, userName, userEmail, schoolName, totalScore);
+      await exportAllToExcel(allGroupData, userName, userEmail, schoolName, totalScore);
     } else if (groupData) {
-      exportToExcel(groupData, userName, userEmail, schoolName, totalScore);
+      await exportToExcel(groupData, userName, userEmail, schoolName, totalScore);
     }
   };
 
@@ -1190,17 +1199,17 @@ function ExportButtons({
 }
 
 /** ===== Export Functions ===== */
-function exportToExcel(
+async function exportToExcel(
   groupData: GroupedTryoutData,
   userName: string,
   userEmail: string,
   schoolName: string,
   totalScore: number
 ) {
+  const XLSX = await import("xlsx");
   const subTests = groupData.subTests;
   const parentTitle = groupData.parent.test_details?.title ?? "Tryout";
 
-  // Prepare data
   const worksheetData = [
     ["HASIL UJIAN TRYOUT"],
     [],
@@ -1219,25 +1228,14 @@ function exportToExcel(
     ["Total Score", "", Number(totalScore.toFixed(2))],
   ];
 
-  // Create workbook
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
-  // Style: Merge title row
-  ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-  ];
-
-  // Set column widths
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
   ws["!cols"] = [{ wch: 10 }, { wch: 40 }, { wch: 15 }];
-
   XLSX.utils.book_append_sheet(wb, ws, "Hasil Tryout");
 
-  // Generate filename
   const testTitle = parentTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase();
   const filename = `hasil_ujian_tryout_${testTitle}_${new Date().toISOString().split("T")[0]}.xlsx`;
-
-  // Download
   XLSX.writeFile(wb, filename);
 }
 
@@ -1444,6 +1442,10 @@ async function exportToPDF(
   // Wait for content to load, then generate PDF
   setTimeout(async () => {
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
       const canvas = await html2canvas(printWindow.document.body, {
         scale: 2,
         useCORS: true,

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import {
-  BookOpenCheck,
+  GraduationCap,
   Pencil,
   Trash2,
   Plus,
@@ -26,12 +26,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Table,
   TableBody,
   TableCell,
@@ -52,56 +46,42 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { displayDate } from "@/lib/format-utils";
-import type { Class } from "@/types/master/class";
 import type { Jenjang } from "@/types/master/jenjang";
 
 import {
-  useGetClassListQuery,
-  useDeleteClassMutation,
-} from "@/services/master/class.service";
-import { useGetJenjangListQuery } from "@/services/master/jenjang.service";
-import { Combobox } from "@/components/ui/combo-box";
+  useGetJenjangListQuery,
+  useDeleteJenjangMutation,
+} from "@/services/master/jenjang.service";
 
-import ClassForm from "@/components/form-modal/master/class-form";
+import JenjangForm from "@/components/form-modal/master/jenjang-form";
 
-export default function ClassPage() {
-  // table states
+export default function JenjangPage() {
   const [page, setPage] = useState(1);
   const [paginate, setPaginate] = useState(10);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [jenjangFilter, setJenjangFilter] = useState<number | null>(null);
 
-  // modal form
   const [openForm, setOpenForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
-  // pending delete
-  const [pendingDelete, setPendingDelete] = useState<Class | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Jenjang | null>(null);
 
-  // debounce search input
-  useMemo(() => {
+  // debounce
+  useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 400);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // jenjang dropdown source
-  const [jenjangSearch, setJenjangSearch] = useState("");
-  const { data: jenjangResp, isFetching: loadingJenjang } =
-    useGetJenjangListQuery({ page: 1, paginate: 50, search: jenjangSearch });
-  const jenjangOptions: Jenjang[] = jenjangResp?.data ?? [];
-
-  // list classes
   const {
     data: listResp,
     isFetching,
     refetch,
-  } = useGetClassListQuery(
-    { page, paginate, search, jenjang_id: jenjangFilter },
+  } = useGetJenjangListQuery(
+    { page, paginate, search },
     { refetchOnMountOrArgChange: true }
   );
 
-  const rows: Class[] = listResp?.data ?? [];
+  const rows: Jenjang[] = listResp?.data ?? [];
   const total = listResp?.total ?? 0;
   const currentPage = listResp?.current_page ?? 1;
   const lastPage = listResp?.last_page ?? 1;
@@ -109,20 +89,17 @@ export default function ClassPage() {
   const start = rows.length ? (currentPage - 1) * paginate + 1 : 0;
   const end = rows.length ? (currentPage - 1) * paginate + rows.length : 0;
 
-  const [remove, { isLoading: deleting }] = useDeleteClassMutation();
+  const [remove, { isLoading: deleting }] = useDeleteJenjangMutation();
 
-  // actions
   const onCreate = () => {
     setEditId(null);
     setOpenForm(true);
   };
-
   const onEdit = (id: number) => {
     setEditId(id);
     setOpenForm(true);
   };
 
-  // ✅ Toast non-modal (tanpa backdrop) agar UI tidak “terkunci” pasca CRUD
   const alertSuccess = (title: string, text?: string) => {
     void Swal.fire({
       toast: true,
@@ -134,11 +111,9 @@ export default function ClassPage() {
       timerProgressBar: true,
       showConfirmButton: false,
       backdrop: false,
-      allowOutsideClick: true,
-      allowEscapeKey: true,
-      showCloseButton: false,
     });
   };
+
   const onSaved = (mode: "create" | "update") => {
     setOpenForm(false);
     setEditId(null);
@@ -146,7 +121,7 @@ export default function ClassPage() {
     alertSuccess(
       mode === "create" ? "Berhasil Dibuat" : "Berhasil Diperbarui",
       mode === "create"
-        ? "Kelas berhasil ditambahkan."
+        ? "Jenjang berhasil ditambahkan."
         : "Perubahan telah disimpan."
     );
   };
@@ -158,7 +133,7 @@ export default function ClassPage() {
       await remove(pendingDelete.id).unwrap();
       setPendingDelete(null);
       refetch();
-      alertSuccess("Berhasil Dihapus", `Kelas "${name}" telah dihapus.`);
+      alertSuccess("Berhasil Dihapus", `Jenjang "${name}" telah dihapus.`);
     } catch (err) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ??
@@ -173,14 +148,14 @@ export default function ClassPage() {
 
   return (
     <>
-      <SiteHeader title="Kelas" />
+      <SiteHeader title="Jenjang" />
       <main className="space-y-6 px-4 py-6">
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="gap-3 md:flex md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              <BookOpenCheck className="h-5 w-5 text-primary" />
+              <GraduationCap className="h-5 w-5 text-primary" />
               <CardTitle className="text-xl font-semibold tracking-tight">
-                Kelas
+                Jenjang
               </CardTitle>
             </div>
             <div className="flex items-center gap-2">
@@ -197,35 +172,17 @@ export default function ClassPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Toolbar */}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Cari nama/desk…"
+                  placeholder="Cari nama jenjang…"
                   value={searchInput}
                   onChange={(e) => {
                     setSearchInput(e.target.value);
                     setPage(1);
                   }}
-                />
-              </div>
-
-              <div>
-                <Combobox<Jenjang>
-                  value={jenjangFilter}
-                  onChange={(v) => {
-                    setJenjangFilter(v);
-                    setPage(1);
-                  }}
-                  onSearchChange={setJenjangSearch}
-                  data={jenjangOptions}
-                  isLoading={loadingJenjang}
-                  placeholder="Filter Jenjang (semua)"
-                  getOptionLabel={(j) =>
-                    j.value ? `${j.name} — ${j.value}` : j.name
-                  }
                 />
               </div>
 
@@ -251,14 +208,13 @@ export default function ClassPage() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-hidden rounded-xl border bg-background">
               <div className="overflow-x-auto">
                 <Table className="min-w-[760px]">
                   <TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
                     <TableRow>
-                      <TableHead className="w-[200px]">Nama Kelas</TableHead>
-                      <TableHead className="w-[160px]">Jenjang</TableHead>
+                      <TableHead className="w-[200px]">Nama</TableHead>
+                      <TableHead className="w-[200px]">Daftar Kelas</TableHead>
                       <TableHead>Deskripsi</TableHead>
                       <TableHead className="w-[120px]">Status</TableHead>
                       <TableHead className="w-[160px]">Dibuat</TableHead>
@@ -269,16 +225,15 @@ export default function ClassPage() {
                   </TableHeader>
 
                   <TableBody>
-                    {/* Skeleton */}
                     {isFetching && rows.length === 0 && (
                       <>
                         {Array.from({ length: 5 }).map((_, i) => (
                           <TableRow key={i} className="hover:bg-transparent">
                             <TableCell>
-                              <Skeleton className="h-4 w-40" />
+                              <Skeleton className="h-4 w-32" />
                             </TableCell>
                             <TableCell>
-                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-4 w-24" />
                             </TableCell>
                             <TableCell>
                               <Skeleton className="h-4 w-full" />
@@ -300,7 +255,6 @@ export default function ClassPage() {
                       </>
                     )}
 
-                    {/* Empty */}
                     {!isFetching && rows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="h-28 text-center">
@@ -311,31 +265,15 @@ export default function ClassPage() {
                       </TableRow>
                     )}
 
-                    {/* Rows */}
                     {rows.map((r, idx) => (
                       <TableRow
                         key={r.id}
                         className={idx % 2 === 1 ? "bg-muted/20" : undefined}
                       >
-                        <TableCell className="font-medium leading-none">
-                          {r.name}
+                        <TableCell className="font-medium">{r.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {r.value ?? "-"}
                         </TableCell>
-
-                        <TableCell>
-                          {r.jenjang_name ? (
-                            <div className="text-sm">
-                              <div className="font-medium">{r.jenjang_name}</div>
-                              {r.jenjang_value && (
-                                <div className="text-xs text-muted-foreground">
-                                  {r.jenjang_value}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-
                         <TableCell>
                           <div
                             className="line-clamp-2 text-sm text-muted-foreground"
@@ -344,7 +282,6 @@ export default function ClassPage() {
                             {r.description ?? "-"}
                           </div>
                         </TableCell>
-
                         <TableCell>
                           {r.status ? (
                             <Badge className="gap-1">
@@ -358,43 +295,26 @@ export default function ClassPage() {
                             </Badge>
                           )}
                         </TableCell>
-
                         <TableCell>{displayDate(r.created_at)}</TableCell>
-
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <div className="inline-flex gap-2">
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  onClick={() => onEdit(r.id)}
-                                  title="Edit"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="destructive"
-                                  onClick={() => setPendingDelete(r)}
-                                  title="Hapus"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-32">
-                              <DropdownMenuItem onClick={() => onEdit(r.id)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setPendingDelete(r)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="inline-flex gap-2">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() => onEdit(r.id)}
+                              title="Edit"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              onClick={() => setPendingDelete(r)}
+                              title="Hapus"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -402,7 +322,6 @@ export default function ClassPage() {
                 </Table>
               </div>
 
-              {/* Footer / pagination */}
               <div className="flex items-center justify-between border-t px-4 py-3">
                 <div className="text-xs text-muted-foreground">
                   Menampilkan <span className="font-medium">{start || 0}</span>–
@@ -435,27 +354,26 @@ export default function ClassPage() {
           </CardContent>
         </Card>
 
-        {/* Modal Create/Edit */}
-        <ClassForm
+        <JenjangForm
           open={openForm}
           onOpenChange={(v) => {
             setOpenForm(v);
             if (!v) setEditId(null);
           }}
           onSuccess={onSaved}
-          classId={editId ?? undefined}
+          jenjangId={editId ?? undefined}
         />
 
-        {/* Confirm Delete */}
         <AlertDialog
           open={!!pendingDelete}
           onOpenChange={(o) => !o && setPendingDelete(null)}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Kelas?</AlertDialogTitle>
+              <AlertDialogTitle>Hapus Jenjang?</AlertDialogTitle>
               <AlertDialogDescription>
-                Aksi ini tidak bisa dibatalkan. Item:
+                Aksi ini tidak bisa dibatalkan. Class & LMS yang menunjuk
+                jenjang ini akan di-set NULL otomatis. Item:
                 <span className="font-semibold"> {pendingDelete?.name}</span>
               </AlertDialogDescription>
             </AlertDialogHeader>

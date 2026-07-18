@@ -49,19 +49,31 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Combobox } from "@/components/ui/combo-box";
+import { useGetJenjangListQuery } from "@/services/master/jenjang.service";
+import type { Jenjang } from "@/types/master/jenjang";
+import { Crown } from "lucide-react";
 
 export default function LmsPage() {
   const [page, setPage] = useState(1);
   const [paginate] = useState(10);
   const [search, setSearch] = useState("");
+  const [jenjangFilter, setJenjangFilter] = useState<number | null>(null);
 
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Lms | null>(null);
+
+  // jenjang dropdown source (filter list - admin/pengawas only)
+  const [jenjangSearch, setJenjangSearch] = useState("");
+  const { data: jenjangResp, isFetching: loadingJenjang } =
+    useGetJenjangListQuery({ page: 1, paginate: 50, search: jenjangSearch });
+  const jenjangOptions: Jenjang[] = jenjangResp?.data ?? [];
 
   const { data, isFetching, refetch } = useGetLmsQuery({
     page,
     paginate,
     search,
+    jenjang_id: jenjangFilter,
   });
   const [deleteLms, { isLoading: isDeleting }] = useDeleteLmsMutation();
 
@@ -144,14 +156,14 @@ export default function LmsPage() {
       <SiteHeader title="Manajemen LMS" />
       <div className="space-y-6 px-4 py-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="text-xl">Manajemen LMS</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Cari judul"
-                  className="pl-8 w-72"
+                  className="pl-8 w-60"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => {
@@ -160,6 +172,22 @@ export default function LmsPage() {
                       refetch();
                     }
                   }}
+                />
+              </div>
+              <div className="w-56">
+                <Combobox<Jenjang>
+                  value={jenjangFilter}
+                  onChange={(v) => {
+                    setJenjangFilter(v);
+                    setPage(1);
+                  }}
+                  onSearchChange={setJenjangSearch}
+                  data={jenjangOptions}
+                  isLoading={loadingJenjang}
+                  placeholder="Filter Jenjang"
+                  getOptionLabel={(j) =>
+                    j.value ? `${j.name} — ${j.value}` : j.name
+                  }
                 />
               </div>
               <Button
@@ -185,6 +213,7 @@ export default function LmsPage() {
                     <TableHead>Judul</TableHead>
                     <TableHead>Mata Pelajaran</TableHead>
                     <TableHead>Sub Mata Pelajaran</TableHead>
+                    <TableHead>Jenjang</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
@@ -229,6 +258,29 @@ export default function LmsPage() {
                         <div className="text-xs text-muted-foreground">
                           {item.subject_sub_code}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.jenjang_id ? (
+                          <div className="space-y-1">
+                            <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+                              <Crown className="h-3 w-3" />
+                              Premium
+                            </Badge>
+                            <div className="text-xs">
+                              {item.jenjang_name ?? "-"}
+                              {item.jenjang_value && (
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  ({item.jenjang_value})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">
+                            Gratis
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={item.status ? "default" : "secondary"}>
@@ -300,7 +352,7 @@ export default function LmsPage() {
                   {rows.length === 0 && !isFetching && (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         className="text-center text-muted-foreground"
                       >
                         Tidak ada data.

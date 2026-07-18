@@ -110,9 +110,11 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         icon: IconZoomQuestion,
         children: [
           { title: "Sekolah", url: "/cms/sekolah" },
-          { title: "Mata Pelajaran", url: "/cms/mapel" },
+          { title: "Jenjang", url: "/cms/jenjang" },
           { title: "Kelas", url: "/cms/class" },
+          { title: "Mata Pelajaran", url: "/cms/mapel" },
           { title: "Sub Mata Pelajaran", url: "/cms/mata-kuliah" },
+          { title: "Kampus", url: "/cms/kampus" },
         ],
       },
       {

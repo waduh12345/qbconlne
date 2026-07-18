@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "suneditor/dist/css/suneditor.min.css";
 // import { ThemeProvider } from "@/components/theme-provider";
@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon-qubic.jpg",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default async function RootLayout({
