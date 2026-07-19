@@ -26,20 +26,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ParticipantAnswer, MCOption } from "@/types/student/tryout";
 import { cn } from "@/lib/utils";
-import {
-  normalizeAnswerSet,
-  arrEqual,
-  formatAnswerDisplay,
-} from "@/lib/answer-correctness";
-import { Lock } from "lucide-react";
 
 // --- 1. DEFINISI TIPE YANG LEBIH KETAT (NO ANY) ---
 
 type CategorizedOption = {
   text: string;
-  accurate: boolean;
-  not_accurate: boolean;
-  point: number;
+  // Bisa null saat review terkunci (kunci jawaban disembunyikan backend)
+  accurate: boolean | null;
+  not_accurate: boolean | null;
+  point: number | null;
   accurate_label?: string;
   not_accurate_label?: string;
 };
@@ -48,8 +43,9 @@ type CategorizedOption = {
 type QuestionDetailsMultipleChoice = {
   type: "multiple_choice" | "true_false" | "multiple_choice_multiple_answer";
   question: string;
-  answer: string;
-  explanation?: string;
+  // answer & explanation bisa null saat review terkunci
+  answer: string | null;
+  explanation?: string | null;
   total_point: number;
   options: MCOption[];
 };
@@ -57,7 +53,7 @@ type QuestionDetailsMultipleChoice = {
 type QuestionDetailsCategorized = {
   type: "multiple_choice_multiple_category";
   question: string;
-  explanation?: string;
+  explanation?: string | null;
   total_point: number;
   options: CategorizedOption[];
 };
@@ -65,7 +61,7 @@ type QuestionDetailsCategorized = {
 type QuestionDetailsEssay = {
   type: "essay";
   question: string;
-  explanation?: string;
+  explanation?: string | null;
   total_point: number;
 };
 
@@ -76,71 +72,6 @@ type QuestionDetailsVariant =
   | QuestionDetailsEssay;
 
 // --- Components Helpers ---
-// normalizeAnswerSet / arrEqual / formatAnswerDisplay dipindah ke
-// "@/lib/answer-correctness" agar dipakai bersama modal detail admin.
-
-/**
- * Hitung correctness client-side. Override `is_correct` dari backend supaya
- * (1) urutan klik tidak mempengaruhi MC multi-answer, dan
- * (2) jawaban kosong tidak pernah dianggap benar walau backend keliru.
- */
-const deriveCorrectness = (
-  answerData: ParticipantAnswer,
-): { isFullyCorrect: boolean; isPartial: boolean } => {
-  const { user_answer, point, is_correct, question_details } = answerData;
-  const userEmpty = !user_answer || user_answer.trim() === "";
-  const currentPoint = point ?? 0;
-  const totalPoint =
-    (question_details as { total_point?: number }).total_point ?? 0;
-  const t = (question_details as { type: string }).type;
-
-  if (userEmpty) {
-    return { isFullyCorrect: false, isPartial: false };
-  }
-
-  if (
-    t === "multiple_choice" ||
-    t === "true_false" ||
-    t === "multiple_choice_multiple_answer"
-  ) {
-    const correctKey = (question_details as QuestionDetailsMultipleChoice)
-      .answer;
-    if (!correctKey) {
-      return { isFullyCorrect: false, isPartial: currentPoint > 0 };
-    }
-    const userSet = normalizeAnswerSet(user_answer);
-    const keySet = normalizeAnswerSet(correctKey);
-    if (arrEqual(userSet, keySet)) {
-      return { isFullyCorrect: true, isPartial: false };
-    }
-    return { isFullyCorrect: false, isPartial: currentPoint > 0 };
-  }
-
-  if (t === "multiple_choice_multiple_category") {
-    const opts = (question_details as QuestionDetailsCategorized).options;
-    const userArr = (user_answer ?? "")
-      .split(",")
-      .map((s) => s.trim().toLowerCase());
-    if (userArr.length !== opts.length) {
-      return { isFullyCorrect: false, isPartial: currentPoint > 0 };
-    }
-    const allMatch = opts.every((o, i) => {
-      const correct = o.accurate ? "accurate" : "not_accurate";
-      return userArr[i] === correct;
-    });
-    return {
-      isFullyCorrect: allMatch,
-      isPartial: !allMatch && currentPoint > 0,
-    };
-  }
-
-  // Essay → tetap mengikuti backend (manual grading oleh guru).
-  const fullyByPoint = currentPoint > 0 && currentPoint === totalPoint;
-  return {
-    isFullyCorrect: fullyByPoint ? true : !!is_correct,
-    isPartial: currentPoint > 0 && !fullyByPoint,
-  };
-};
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -164,13 +95,26 @@ const MultipleChoiceReview = ({
   options,
   userAnswer,
   correctAnswer,
+  isReviewLocked = false,
 }: {
   options: MCOption[];
   userAnswer: string | null;
   correctAnswer: string | null;
+  isReviewLocked?: boolean;
 }) => {
-  const userAnswerList = normalizeAnswerSet(userAnswer);
-  const correctAnswerList = normalizeAnswerSet(correctAnswer);
+  const userAnswerList = userAnswer
+    ? userAnswer
+        .toLowerCase()
+        .split(",")
+        .map((s) => s.trim())
+    : [];
+
+  const correctAnswerList = correctAnswer
+    ? correctAnswer
+        .toLowerCase()
+        .split(",")
+        .map((s) => s.trim())
+    : [];
 
   return (
     <div className="space-y-3">
@@ -182,7 +126,7 @@ const MultipleChoiceReview = ({
         const isSelected = userAnswerList.includes(rawOptionKey);
         const isKey = correctAnswerList.includes(rawOptionKey);
 
-        const optionPoint = opt.point || 0;
+        const optionPoint = opt.point ?? 0;
         const isPartialCorrect = isSelected && !isKey && optionPoint > 0;
 
         let containerClass = "border-zinc-200 bg-white hover:bg-zinc-50";
@@ -190,7 +134,18 @@ const MultipleChoiceReview = ({
         let indicatorIcon = null;
         let statusLabel = null;
 
-        if (isSelected && isKey) {
+        if (isReviewLocked) {
+          // Review terkunci: hanya tandai jawaban siswa (netral), tanpa benar/salah/kunci.
+          if (isSelected) {
+            containerClass = "border-sky-400 bg-sky-50 ring-1 ring-sky-400";
+            badgeClass = "border-sky-400 bg-sky-100 text-sky-700";
+            statusLabel = (
+              <span className="text-xs font-bold text-sky-600 ml-2">
+                (Jawaban Kamu)
+              </span>
+            );
+          }
+        } else if (isSelected && isKey) {
           containerClass =
             "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500";
           badgeClass = "border-emerald-500 bg-emerald-100 text-emerald-700";
@@ -234,7 +189,7 @@ const MultipleChoiceReview = ({
 
         return (
           <div
-            key={`${opt.option ?? "opt"}-${i}`}
+            key={i}
             className={cn(
               "relative flex items-start gap-3 rounded-lg border p-4 transition-all",
               containerClass
@@ -272,24 +227,33 @@ const MultipleChoiceReview = ({
 const CategorizedReview = ({
   options,
   userAnswer,
+  isReviewLocked = false,
 }: {
   options: CategorizedOption[];
   userAnswer: string | null;
+  isReviewLocked?: boolean;
 }) => {
   const userAnswers = userAnswer ? userAnswer.split(",") : [];
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider px-4">
-        <div className="col-span-6 md:col-span-8">Pernyataan</div>
-        <div className="col-span-3 md:col-span-2 text-center">Jawaban Kamu</div>
-        <div className="col-span-3 md:col-span-2 text-center">Kunci</div>
+        <div className={cn(isReviewLocked ? "col-span-8" : "col-span-6 md:col-span-8")}>
+          Pernyataan
+        </div>
+        <div className={cn("text-center", isReviewLocked ? "col-span-4" : "col-span-3 md:col-span-2")}>
+          Jawaban Kamu
+        </div>
+        {!isReviewLocked && (
+          <div className="col-span-3 md:col-span-2 text-center">Kunci</div>
+        )}
       </div>
 
       {options.map((opt, i) => {
         const userAns = userAnswers[i]?.trim();
+        // Kunci hanya valid saat review dibuka (opt.accurate bisa null saat terkunci).
         const correctAns = opt.accurate ? "accurate" : "not_accurate";
-        const isUserCorrect = userAns === correctAns;
+        const isUserCorrect = !isReviewLocked && userAns === correctAns;
 
         const labelTrue = opt.accurate_label || "Benar";
         const labelFalse = opt.not_accurate_label || "Salah";
@@ -301,21 +265,30 @@ const CategorizedReview = ({
             key={i}
             className={cn(
               "grid grid-cols-12 gap-4 items-center rounded-lg border p-4 text-sm",
-              isUserCorrect
+              isReviewLocked
+                ? "bg-zinc-50/50 border-zinc-200"
+                : isUserCorrect
                 ? "bg-emerald-50/30 border-emerald-200"
                 : "bg-rose-50/30 border-rose-200"
             )}
           >
-            <div className="col-span-6 md:col-span-8">
+            <div className={cn(isReviewLocked ? "col-span-8" : "col-span-6 md:col-span-8")}>
               <div dangerouslySetInnerHTML={{ __html: opt.text }} />
             </div>
 
-            <div className="col-span-3 md:col-span-2 flex flex-col items-center justify-center">
+            <div
+              className={cn(
+                "flex flex-col items-center justify-center",
+                isReviewLocked ? "col-span-4" : "col-span-3 md:col-span-2"
+              )}
+            >
               <Badge
-                variant={isUserCorrect ? "default" : "destructive"}
+                variant={isReviewLocked || isUserCorrect ? "default" : "destructive"}
                 className={cn(
                   "whitespace-nowrap shadow-none",
-                  isUserCorrect
+                  isReviewLocked
+                    ? "bg-sky-100 text-sky-700 hover:bg-sky-100"
+                    : isUserCorrect
                     ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                     : "bg-rose-100 text-rose-700 hover:bg-rose-100"
                 )}
@@ -324,14 +297,16 @@ const CategorizedReview = ({
               </Badge>
             </div>
 
-            <div className="col-span-3 md:col-span-2 flex flex-col items-center justify-center border-l border-zinc-200 pl-4">
-              <span className="font-semibold text-zinc-700">
-                {getUserLabel(correctAns)}
-              </span>
-              {!isUserCorrect && (
-                <span className="text-[10px] text-zinc-400">(Kunci)</span>
-              )}
-            </div>
+            {!isReviewLocked && (
+              <div className="col-span-3 md:col-span-2 flex flex-col items-center justify-center border-l border-zinc-200 pl-4">
+                <span className="font-semibold text-zinc-700">
+                  {getUserLabel(correctAns)}
+                </span>
+                {!isUserCorrect && (
+                  <span className="text-[10px] text-zinc-400">(Kunci)</span>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -343,12 +318,14 @@ const CategorizedReview = ({
 const QuestionReviewItem = ({
   answerData,
   index,
+  isReviewLocked = false,
 }: {
   answerData: ParticipantAnswer;
   index: number;
+  isReviewLocked?: boolean;
 }) => {
   const questionDetails = answerData.question_details as QuestionDetailsVariant;
-  const { user_answer, point } = answerData;
+  const { user_answer, is_correct, point } = answerData;
   const type = questionDetails.type;
 
   let displayUserAnswer = "-";
@@ -359,16 +336,19 @@ const QuestionReviewItem = ({
     type === "true_false" ||
     type === "multiple_choice_multiple_answer"
   ) {
-    displayUserAnswer = formatAnswerDisplay(user_answer);
-    displayCorrectKey = formatAnswerDisplay(questionDetails.answer);
+    displayUserAnswer = user_answer ? user_answer.toUpperCase() : "-";
+    // answer bisa null saat review terkunci -> guard optional chaining
+    displayCorrectKey = questionDetails.answer
+      ? questionDetails.answer.toUpperCase()
+      : "-";
   } else if (type === "multiple_choice_multiple_category") {
     displayUserAnswer = "Lihat Detail";
     displayCorrectKey = "Lihat Detail";
   }
 
-  // Hitung sendiri (override backend) supaya: (1) urutan klik tidak salah
-  // dianggap salah, dan (2) jawaban kosong tidak pernah dihitung benar.
-  const { isFullyCorrect, isPartial } = deriveCorrectness(answerData);
+  const currentPoint = point ?? 0;
+  const isPartial = currentPoint > 0 && !is_correct;
+  const hasAnswered = user_answer !== null && user_answer !== "";
 
   return (
     <Card className="mb-6 overflow-hidden border-zinc-200 shadow-sm">
@@ -385,13 +365,24 @@ const QuestionReviewItem = ({
                   {type.replace(/_/g, " ")}
                 </Badge>
 
-                {type === "essay" ? (
+                {isReviewLocked ? (
+                  <Badge
+                    className={cn(
+                      "shadow-none border",
+                      hasAnswered
+                        ? "bg-sky-100 text-sky-700 hover:bg-sky-100 border-sky-200"
+                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-100 border-zinc-200"
+                    )}
+                  >
+                    {hasAnswered ? "Terjawab" : "Belum Dijawab"}
+                  </Badge>
+                ) : type === "essay" ? (
                   <Badge variant="secondary">
                     {answerData.point !== null
                       ? `Nilai: ${point}`
                       : "Menunggu Penilaian"}
                   </Badge>
-                ) : isFullyCorrect ? (
+                ) : is_correct ? (
                   <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none">
                     <CheckCircle2 className="mr-1 h-3 w-3" /> Benar
                   </Badge>
@@ -415,7 +406,9 @@ const QuestionReviewItem = ({
                     <span
                       className={cn(
                         "font-bold px-2 py-0.5 rounded text-xs border",
-                        isFullyCorrect
+                        isReviewLocked
+                          ? "bg-sky-50 text-sky-700 border-sky-200"
+                          : is_correct
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : isPartial
                           ? "bg-yellow-50 text-yellow-700 border-yellow-200"
@@ -425,7 +418,8 @@ const QuestionReviewItem = ({
                       {displayUserAnswer}
                     </span>
                   </div>
-                  {!isFullyCorrect && (
+                  {/* Kunci disembunyikan saat review terkunci */}
+                  {!isReviewLocked && !is_correct && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-zinc-500">Kunci:</span>
                       <span className="font-bold px-2 py-0.5 rounded text-xs bg-zinc-100 text-zinc-700 border border-zinc-200">
@@ -438,17 +432,20 @@ const QuestionReviewItem = ({
             </div>
           </div>
 
-          <div className="text-right text-sm text-zinc-500 sm:self-start">
-            Poin:{" "}
-            <span
-              className={cn(
-                "font-semibold",
-                isPartial ? "text-yellow-600" : "text-zinc-900"
-              )}
-            >
-              {point ?? 0}
-            </span>
-          </div>
+          {/* Poin hanya tampil saat review dibuka (point bisa null saat terkunci) */}
+          {!isReviewLocked && (
+            <div className="text-right text-sm text-zinc-500 sm:self-start">
+              Poin:{" "}
+              <span
+                className={cn(
+                  "font-semibold",
+                  isPartial ? "text-yellow-600" : "text-zinc-900"
+                )}
+              >
+                {point ?? 0}
+              </span>
+            </div>
+          )}
         </div>
       </CardHeader>
 
@@ -467,6 +464,7 @@ const QuestionReviewItem = ({
             correctAnswer={
               (questionDetails as QuestionDetailsMultipleChoice).answer
             }
+            isReviewLocked={isReviewLocked}
           />
         )}
 
@@ -474,6 +472,7 @@ const QuestionReviewItem = ({
           <CategorizedReview
             options={(questionDetails as QuestionDetailsCategorized).options}
             userAnswer={user_answer}
+            isReviewLocked={isReviewLocked}
           />
         )}
 
@@ -492,47 +491,62 @@ const QuestionReviewItem = ({
           </div>
         )}
 
-        <div className="mt-8">
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="explanation" className="border-none">
-              <AccordionTrigger className="flex w-full items-center justify-between rounded-lg bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 hover:bg-sky-100 hover:no-underline transition-colors">
-                <div className="flex items-center gap-2">
-                  <HelpCircle className="h-4 w-4" />
-                  Lihat Pembahasan
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="mt-2 rounded-lg border border-sky-100 bg-white p-5 text-sm leading-relaxed text-zinc-700 shadow-sm">
-                {type !== "multiple_choice_multiple_category" &&
-                  type !== "essay" && (
-                    <div className="mb-4 rounded-md bg-emerald-50 p-3 border border-emerald-100 text-emerald-800 font-medium">
-                      Kunci Jawaban Benar:{" "}
-                      {(
-                        questionDetails as QuestionDetailsMultipleChoice
-                      ).answer.toUpperCase()}
-                    </div>
-                  )}
+        {isReviewLocked ? (
+          // Review terkunci: kunci jawaban & pembahasan disembunyikan
+          <div className="mt-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Pembahasan belum dibuka</p>
+              <p className="text-amber-700/80">
+                Kunci jawaban dan pembahasan akan tersedia setelah guru membuka
+                hasil review.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-8">
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="explanation" className="border-none">
+                <AccordionTrigger className="flex w-full items-center justify-between rounded-lg bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 hover:bg-sky-100 hover:no-underline transition-colors">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4" />
+                    Lihat Pembahasan
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="mt-2 rounded-lg border border-sky-100 bg-white p-5 text-sm leading-relaxed text-zinc-700 shadow-sm">
+                  {type !== "multiple_choice_multiple_category" &&
+                    type !== "essay" &&
+                    (questionDetails as QuestionDetailsMultipleChoice).answer && (
+                      <div className="mb-4 rounded-md bg-emerald-50 p-3 border border-emerald-100 text-emerald-800 font-medium">
+                        Kunci Jawaban Benar:{" "}
+                        {(
+                          questionDetails as QuestionDetailsMultipleChoice
+                        ).answer?.toUpperCase()}
+                      </div>
+                    )}
 
-                {questionDetails.explanation ? (
-                  <>
-                    <div className="mb-2 font-bold text-zinc-900 border-b pb-2">
-                      Penjelasan:
-                    </div>
-                    <div
-                      className="prose prose-sm max-w-none prose-img:rounded-lg mt-3"
-                      dangerouslySetInnerHTML={{
-                        __html: questionDetails.explanation,
-                      }}
-                    />
-                  </>
-                ) : (
-                  <p className="italic text-zinc-400">
-                    Tidak ada pembahasan untuk soal ini.
-                  </p>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
+                  {questionDetails.explanation ? (
+                    <>
+                      <div className="mb-2 font-bold text-zinc-900 border-b pb-2">
+                        Penjelasan:
+                      </div>
+                      <div
+                        className="prose prose-sm max-w-none prose-img:rounded-lg mt-3"
+                        dangerouslySetInnerHTML={{
+                          __html: questionDetails.explanation,
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <p className="italic text-zinc-400">
+                      Tidak ada pembahasan untuk soal ini.
+                    </p>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -586,45 +600,45 @@ export default function StudentTryoutScorePage({
     test_details,
     created_at,
     participant_question_categories,
+    is_review_locked,
+    result_summary,
   } = history;
 
+  const isReviewLocked = is_review_locked ?? false;
   const categories = participant_question_categories ?? [];
 
-  // Gating "Review Hasil": jika admin mematikan review (is_explanation_released
-  // = false) DAN tryout masih aktif (belum melewati end_date), siswa HANYA
-  // melihat skor & rekap benar/salah — tanpa soal, jawaban, dan kunci jawaban.
-  // Jika review diaktifkan (on) ATAU masa tryout sudah berakhir, detail dibuka.
-  const reviewReleased = test_details?.is_explanation_released === true;
-  const endTime = test_details?.end_date
-    ? new Date(test_details.end_date).getTime()
-    : null;
-  const tryoutEnded = endTime !== null && !Number.isNaN(endTime) && Date.now() > endTime;
-  const reviewUnlocked = reviewReleased || tryoutEnded;
+  // Hitung total soal benar dan salah dari semua kategori.
+  // Saat review terkunci, is_correct = null sehingga tidak bisa diandalkan;
+  // gunakan result_summary dari backend bila tersedia.
+  const totalStats = result_summary
+    ? {
+        total: result_summary.total_questions,
+        correct: result_summary.total_correct,
+        wrong: result_summary.total_incorrect,
+      }
+    : categories.reduce(
+        (acc, cat) => {
+          const questions = (cat.participant_questions ??
+            []) as ParticipantAnswer[];
+          questions.forEach((q) => {
+            acc.total += 1;
+            if (q.is_correct) {
+              acc.correct += 1;
+            } else {
+              acc.wrong += 1;
+            }
+          });
+          return acc;
+        },
+        { total: 0, correct: 0, wrong: 0 }
+      );
 
-  // Hitung total soal benar dan salah dari semua kategori - pakai deriveCorrectness
-  // supaya statistik konsisten dengan badge per soal.
-  const totalStats = categories.reduce(
-    (acc, cat) => {
-      const questions = (cat.participant_questions ?? []) as ParticipantAnswer[];
-      questions.forEach((q) => {
-        const { isFullyCorrect, isPartial } = deriveCorrectness(q);
-        acc.total += 1;
-        if (isFullyCorrect) {
-          acc.correct += 1;
-        } else if (isPartial) {
-          acc.partial += 1;
-        } else {
-          acc.wrong += 1;
-        }
-      });
-      return acc;
-    },
-    { total: 0, correct: 0, wrong: 0, partial: 0 }
-  );
-
-  // Hitung nilai persentase per 100
+  // Nilai akhir: pakai grade resmi dari backend bila review terkunci
+  // (perhitungan benar/salah tidak valid saat is_correct null).
   const calculatedGrade =
-    totalStats.total > 0
+    isReviewLocked && !result_summary
+      ? history.grade ?? 0
+      : totalStats.total > 0
       ? Math.round((totalStats.correct / totalStats.total) * 100)
       : 0;
 
@@ -671,8 +685,23 @@ export default function StudentTryoutScorePage({
 
       {/* Main Content */}
       <main className="mx-auto max-w-5xl px-4 lg:px-0 mt-4 relative z-10">
+        {/* Banner: review terkunci */}
+        {isReviewLocked && (
+          <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Review hasil belum dibuka</p>
+              <p className="text-amber-700/80">
+                Kunci jawaban, status benar/salah, dan pembahasan masih
+                disembunyikan. Kamu tetap dapat melihat jawabanmu dan ringkasan
+                skor. Detail akan muncul setelah guru membuka hasil review.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Info Cards */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-8">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
           <Card className="border-l-4 border-l-emerald-500 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-zinc-500">
@@ -682,18 +711,6 @@ export default function StudentTryoutScorePage({
             <CardContent>
               <div className="flex items-center gap-2 text-emerald-600 font-bold text-lg">
                 <CheckCircle2 className="h-5 w-5" /> {totalStats.correct} Soal
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-yellow-500 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-500">
-                Jawaban Parsial
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-yellow-600 font-bold text-lg">
-                <AlertCircle className="h-5 w-5" /> {totalStats.partial} Soal
               </div>
             </CardContent>
           </Card>
@@ -723,10 +740,7 @@ export default function StudentTryoutScorePage({
           </Card>
         </div>
 
-        {/* Detail Jawaban — hanya jika "Review Hasil" aktif (on) atau masa
-            tryout sudah berakhir. Jika terkunci, siswa cukup melihat skor &
-            rekap benar/salah di atas. */}
-        {reviewUnlocked ? (
+        {/* Categories Tabs */}
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-zinc-800">Detail Jawaban</h2>
           {categories.length > 0 ? (
@@ -770,6 +784,7 @@ export default function StudentTryoutScorePage({
                             key={q.question_id || idx}
                             answerData={q}
                             index={idx}
+                            isReviewLocked={isReviewLocked}
                           />
                         )
                       )
@@ -788,25 +803,6 @@ export default function StudentTryoutScorePage({
             </div>
           )}
         </div>
-        ) : (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-zinc-800">Detail Jawaban</h2>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-8 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                <Lock className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-semibold text-amber-900">
-                Pembahasan Masih Dikunci
-              </h3>
-              <p className="mx-auto mt-2 max-w-lg text-sm text-amber-700">
-                Kamu sudah menyelesaikan tryout ini. Untuk sekarang kamu hanya
-                dapat melihat skor dan rekap jawaban benar/salah. Detail soal,
-                jawabanmu, beserta kunci jawaban akan tersedia setelah masa
-                tryout berakhir.
-              </p>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
