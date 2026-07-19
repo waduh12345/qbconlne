@@ -158,6 +158,15 @@ export type QuestionGroup = {
   questions: ParticipantAnswer[];
 };
 
+// Ringkasan skor yang tetap boleh ditampilkan walau review terkunci.
+export type ResultSummary = {
+  total_questions: number;
+  total_answered: number;
+  total_unanswered: number;
+  total_correct: number;
+  total_incorrect: number;
+};
+
 export type ParticipantHistoryItem = ParticipantTest & {
   participant_question_categories?: ParticipantQuestionCategory[];
   participant_test_question_category_id?: number;
@@ -168,6 +177,10 @@ export type ParticipantHistoryItem = ParticipantTest & {
   started_at?: string | null;
   ended_at?: string | null;
   test?: TestDetails; // Alternative property name for test_details in some API responses
+  // ── Kontrak baru: kunci jawaban & pembahasan disembunyikan saat review belum dibuka guru ──
+  is_review_locked?: boolean;
+  is_explanation_released?: boolean;
+  result_summary?: ResultSummary;
 };
 
 export type PaginatedResponse<T> = {
