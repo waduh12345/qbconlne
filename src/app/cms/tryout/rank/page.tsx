@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, ArrowLeft, Eye } from "lucide-react";
+import { Loader2, RefreshCw, ArrowLeft, Eye, FileSpreadsheet } from "lucide-react";
 import Pager from "@/components/ui/tryout-pagination";
 
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
+import { useExportTestMutation } from "@/services/tryout/export-test.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import { ParticipantHistoryDetail } from "../../../../components/modal/detail/page";
 import { ParticipantHistoryDetailPG } from "../../../../components/modal/detail-pg/page";
@@ -60,6 +61,29 @@ export default function RankPage() {
     () => data?.data ?? [],
     [data]
   );
+
+  // Export Excel: pakai endpoint backend TestExport (POST /test/export).
+  // Backend mengeluarkan kolom "Nilai" = participant_tests.grade (skor IRT skala 0–1000).
+  // JANGAN membangun Excel di sisi client dari data ranking yang tidak menjamin grade final.
+  const [exportTest, { isLoading: isExporting }] = useExportTestMutation();
+
+  const onExport = async () => {
+    if (!testId || Number.isNaN(testId)) return;
+    try {
+      const res = await exportTest({ test_id: testId }).unwrap();
+      await Swal.fire({
+        icon: "success",
+        title: "Export dimulai",
+        text: res.data || res.message,
+      });
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "Export gagal",
+        text: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
 
   return (
     <>
@@ -117,6 +141,18 @@ export default function RankPage() {
                     <RefreshCw className="mr-2 h-4 w-4" />
                   )}
                   Refresh
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={onExport}
+                  disabled={isExporting || !testId || Number.isNaN(testId)}
+                >
+                  {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  )}
+                  Export Excel
                 </Button>
               </div>
             </div>
